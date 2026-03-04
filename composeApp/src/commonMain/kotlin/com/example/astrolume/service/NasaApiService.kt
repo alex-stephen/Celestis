@@ -7,17 +7,21 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 
 class NasaApi(private val client: HttpClient) {
+ //TODO: FIX THIS STUPID BUILDKONFIG
  private val baseUrl = BuildKonfig.BASE_URL
 
  suspend fun getApodFromServer(date: String? = null): ApodResponse {
-  // Updated to use query params: /api/apod?date=YYYY-MM-DD
   return client.get(baseUrl) {
-   url { date?.let { parameters.append("date", it) } }
+   url {
+    // This ensures parameters are appended correctly to the existing base
+    date?.let { parameters.append("date", it) }
+   }
   }.body()
  }
 
  suspend fun searchByTag(tag: String): List<ApodResponse> {
-  // Matches your new backend endpoint: /api/apod/search?tag=Mars
+  // Check if the proxy actually uses /api/apod/search
+  // or if it should be /api/search
   return client.get("$baseUrl/search") {
    url { parameters.append("tag", tag) }
   }.body()

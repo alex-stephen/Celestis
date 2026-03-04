@@ -44,8 +44,14 @@ fun App(database: AppDatabase) {
     val client = remember {
         HttpClient {
             install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+                json(Json {
+                    ignoreUnknownKeys = true
+                    prettyPrint = true
+                    isLenient = true
+                })
             }
+            // Add this to force the app to recognize JSON even if the server is messy
+            expectSuccess = true
         }
     }
     val api = remember { NasaApi(client) }
