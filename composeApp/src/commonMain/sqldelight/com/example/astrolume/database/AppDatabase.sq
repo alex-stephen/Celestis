@@ -1,0 +1,39 @@
+import kotlin.Boolean;
+
+CREATE TABLE ApodEntity (
+    date TEXT NOT NULL PRIMARY KEY, -- The date is unique and fixed
+    explanation TEXT,
+    mediaType TEXT,
+    serviceVersion TEXT,
+    title TEXT,
+    urlHD TEXT,
+    url TEXT,
+    thumbnailUrl TEXT,
+    tags TEXT, -- Store as JSON string: ["Mars", "Rover"]
+    copyright TEXT,
+    isFavorite INTEGER AS Boolean NOT NULL DEFAULT 0,
+    createdAt TEXT
+);
+
+-- Indexing favorites makes the "My Favorites" screen load instantly
+CREATE INDEX IF NOT EXISTS apod_favorite_index ON ApodEntity(isFavorite);
+
+insertApod:
+INSERT OR REPLACE INTO ApodEntity(
+    date, explanation, mediaType, serviceVersion,
+    title, urlHD, url, thumbnailUrl, tags,
+    copyright, isFavorite, createdAt
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getApodByDate:
+SELECT * FROM ApodEntity WHERE date = ?;
+
+updateFavorite:
+UPDATE ApodEntity SET isFavorite = ? WHERE date = ?;
+
+getAllFavorites:
+SELECT * FROM ApodEntity WHERE isFavorite = 1 ORDER BY date DESC;
+
+deleteAll:
+DELETE FROM ApodEntity;
