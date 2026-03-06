@@ -12,7 +12,9 @@ CREATE TABLE ApodEntity (
     tags TEXT, -- Store as JSON string: ["Mars", "Rover"]
     copyright TEXT,
     isFavorite INTEGER AS Boolean NOT NULL DEFAULT 0,
-    createdAt TEXT
+    createdAt TEXT,
+    averageRating INTEGER,
+    totalVotes INTEGER
 );
 
 -- Indexing favorites makes the "My Favorites" screen load instantly
@@ -22,9 +24,9 @@ insertApod:
 INSERT OR REPLACE INTO ApodEntity(
     date, explanation, mediaType, serviceVersion,
     title, urlHD, url, thumbnailUrl, tags,
-    copyright, isFavorite, createdAt
+    copyright, isFavorite, createdAt, averageRating, totalVotes
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getApodByDate:
 SELECT * FROM ApodEntity WHERE date = ?;

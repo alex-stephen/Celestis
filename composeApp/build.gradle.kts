@@ -66,6 +66,10 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
+            implementation(libs.navigation.compose)
+            implementation(libs.components.resources.v1101)
+            implementation(libs.material.icons.extended)
+            implementation(libs.slf4j.nop)
        }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

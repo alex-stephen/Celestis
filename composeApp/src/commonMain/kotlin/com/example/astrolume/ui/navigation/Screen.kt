@@ -1,0 +1,10 @@
+package com.example.astrolume.ui.navigation
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+sealed interface Screen {
+    @Serializable object Home : Screen
+    @Serializable object Search : Screen
+    @Serializable object Favorites : Screen
+}

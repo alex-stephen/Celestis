@@ -13,10 +13,12 @@ class ApodRepository(
 ) {
     private val queries = database.appDatabaseQueries
 
-    suspend fun fetchApod(date: String): ApodEntity {
+    suspend fun fetchApod(date: String? = null): ApodEntity {
         // 1. Local check
-        val cached = queries.getApodByDate(date).executeAsOneOrNull()
-        if (cached != null) return cached
+        if (date != null) {
+            val cached = queries.getApodByDate(date).executeAsOneOrNull()
+            if (cached != null) return cached
+        }
 
         // 2. Network fetch (Now using our optimized Proxy Server)
         val remote = api.getApodFromServer(date)
@@ -24,7 +26,7 @@ class ApodRepository(
         // 3. Persist to SQL (No UUID generation needed!)
         saveToLocal(remote)
 
-        return queries.getApodByDate(date).executeAsOne()
+        return queries.getApodByDate(remote.date).executeAsOne()
     }
 
     /**
@@ -68,7 +70,9 @@ class ApodRepository(
             tags = remote.tags.toJsonString(),
             copyright = remote.copyright,
             isFavorite = false, // Default to false unless explicitly favorited
-            createdAt = Clock.System.now().toString()
+            createdAt = Clock.System.now().toString(),
+            averageRating = remote.averageRating?.toLong(),
+            totalVotes = remote.totalVotes?.toLong()
         )
     }
 

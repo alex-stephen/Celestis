@@ -4,7 +4,9 @@ import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.database.AppDatabase
 import com.example.astrolume.network.createHttpClient
 import com.example.astrolume.service.NasaApi
-import com.example.astrolume.ui.ApodViewModel
+import com.example.astrolume.ui.viewModels.ApodViewModel
+import com.example.astrolume.ui.viewModels.HomeViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val commonModule = module {
@@ -20,5 +22,7 @@ val commonModule = module {
     // Note: 'get()' automatically finds the NasaApi and AppDatabase
     single { ApodRepository(get(), get()) }
 
-    factory { ApodViewModel(get()) }
+    viewModel { ApodViewModel(get()) }
+
+    viewModel { HomeViewModel(get()) }
 }
