@@ -14,5 +14,7 @@ data class ApodResponse(
     @SerialName("service_version") val serviceVersion: String? = null,
     @SerialName("hdurl") val urlHD: String? = null,
     @SerialName("thumbnail_url") val thumbnailUrl: String? = null, // New
-    val tags: List<String> = emptyList() // New: Matches enriched backend data
+    val tags: List<String> = emptyList(),
+    val averageRating: Int? = 0,
+    val totalVotes: Int? = 0
 )

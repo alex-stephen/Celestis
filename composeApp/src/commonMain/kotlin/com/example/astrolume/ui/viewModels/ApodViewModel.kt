@@ -1,4 +1,4 @@
-package com.example.astrolume.ui
+package com.example.astrolume.ui.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
