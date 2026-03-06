@@ -63,6 +63,9 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.uuid)
             implementation(libs.coroutines.extensions)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.viewmodel)
        }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
@@ -74,19 +77,17 @@ kotlin {
     }
 }
 
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
 buildkonfig {
     packageName = "com.example.astrolume"
 
     // Default values (used if local.properties is missing)
     defaultConfigs {
-        buildConfigField(STRING, "BASE_URL", "https://fallback-url.com")
-    }
-
-    // Pull from local.properties for your actual dev/prod values
-    val localProperties = Properties()
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localProperties.load(localPropertiesFile.inputStream())
+        buildConfigField(STRING, "BASE_URL", localProperties.getProperty("BASE_URL") ?: "https://fallback.com")
     }
 
     targetConfigs {
