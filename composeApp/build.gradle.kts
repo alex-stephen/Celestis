@@ -71,6 +71,9 @@ kotlin {
             implementation(libs.material.icons.extended)
             implementation(libs.slf4j.nop)
             implementation(libs.compose.material3.windowSizeClass)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor)
+            implementation(libs.haze)
        }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

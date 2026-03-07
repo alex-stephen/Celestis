@@ -16,5 +16,6 @@ data class ApodResponse(
     @SerialName("thumbnail_url") val thumbnailUrl: String? = null, // New
     val tags: List<String> = emptyList(),
     val averageRating: Int? = 0,
-    val totalVotes: Int? = 0
+    val totalVotes: Int? = 0,
+    val isFavorite: Boolean = false
 )
