@@ -13,6 +13,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +23,7 @@ import com.example.astrolume.ui.viewModels.HomeUiState
 @Composable
 fun HomeScreen(
     state: HomeUiState,
+    windowSizeClass: WindowSizeClass,
     onRefresh: () -> Unit,
     onFavoriteToggle: (String, Boolean) -> Unit
 ) {
