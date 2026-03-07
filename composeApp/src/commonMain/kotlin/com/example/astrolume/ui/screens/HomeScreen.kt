@@ -5,6 +5,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -83,6 +87,7 @@ fun HomeScreen(
     val isShowingRandom by viewModel.isShowingRandom.collectAsStateWithLifecycle()
 
     val isFetchingRandom by viewModel.isFetchingRandom.collectAsStateWithLifecycle()
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -99,11 +104,13 @@ fun HomeScreen(
             is HomeUiState.Success -> {
                 HomeScreenSuccess(
                     state = state,
+                    windowSizeClass = windowSizeClass,
                     isShowingRandom = isShowingRandom,
                     isFetchingRandom = isFetchingRandom,
                     onRefresh = viewModel::showRandomNext, // Trigger prefetch & swap
                     onBackToToday = viewModel::showToday,
-                    onFavoriteToggle = viewModel::toggleFavorite)
+                    onFavoriteToggle = viewModel::toggleFavorite
+                )
             }
         }
     }
@@ -112,6 +119,7 @@ fun HomeScreen(
 @Composable
 fun HomeScreenSuccess(
     state: HomeUiState.Success,
+    windowSizeClass: WindowSizeClass,
     isShowingRandom: Boolean,
     isFetchingRandom: Boolean,
     onRefresh: () -> Unit,
@@ -125,9 +133,27 @@ fun HomeScreenSuccess(
     } else {
         state.todayApod
     }
+
     var isExpanded by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(true) }
     val hazeState = remember { HazeState() }
+
+    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
+    val cardWidth by animateDpAsState(
+        targetValue = when {
+            !isLandscape -> 1000.dp // Will be constrained by fillMaxWidth()
+            isExpanded -> 500.dp    // Expanded Landscape Width
+            else -> 320.dp          // Collapsed Landscape Width
+        }, label = "Width"
+    )
+
+    val cardHeight by animateDpAsState(
+        targetValue = when {
+            isExpanded -> 320.dp    // Capped height: Scrollable text handles the rest
+            else -> 180.dp          // Snug collapsed height
+        }, label = "Height"
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -135,7 +161,12 @@ fun HomeScreenSuccess(
                 .fillMaxSize()
                 .haze(state = hazeState) // Apply .haze() ONLY to this layer
         ) {
-            Crossfade(targetState = displayApod.url, animationSpec = tween(700)) { url ->
+            Crossfade(
+                targetState =
+                    if (displayApod.mediaType.equals("video", ignoreCase = true)) {
+                        displayApod.thumbnailUrl ?: displayApod.url
+                    } else { displayApod.url }
+                , animationSpec = tween(700)) { url ->
                 AsyncImage(
                     model = url,
                     contentDescription = null,
@@ -208,11 +239,16 @@ fun HomeScreenSuccess(
         // The Glass Card
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomEnd)
                 .padding(16.dp)
-                .graphicsLayer { alpha = if (isVisible) 1f else 0f }
-                .fillMaxWidth()
-                .height(if (isExpanded) 400.dp else 200.dp)
+                .graphicsLayer {
+                    alpha = if (isVisible) 1f else 0f
+                    transformOrigin = TransformOrigin(1f, 1f) // Anchor point: Bottom-Right
+                    scaleX = if (isVisible) 1f else 0.8f
+                    scaleY = if (isVisible) 1f else 0.8f
+                }
+                .then(if (isLandscape) Modifier.width(cardWidth) else Modifier.fillMaxWidth())
+                .height(cardHeight)
                 .clip(RoundedCornerShape(28.dp))
                 .hazeChild(
                     state = hazeState,
@@ -258,8 +294,8 @@ fun CardContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(50),
                 modifier = Modifier
+                    .clip(RoundedCornerShape(50))
                     .hazeChild(state = hazeState,
                         style = HazeStyle(
                             backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
