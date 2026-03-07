@@ -1,5 +1,6 @@
 package com.example.astrolume.ui.navigation
 
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -14,10 +15,12 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun NavGraph(
     navController: NavHostController,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier
 ) {
     NavHost(
         navController = navController,
+
         startDestination = Screen.Home,
         modifier = modifier
     ) {
@@ -27,6 +30,7 @@ fun NavGraph(
 
             HomeScreen(
                 state = state,
+                windowSizeClass = windowSizeClass, // NEW: Pass it to the screen
                 onRefresh = viewModel::refreshAll,
                 onFavoriteToggle = viewModel::toggleFavorite
             )

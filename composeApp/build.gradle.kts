@@ -70,6 +70,7 @@ kotlin {
             implementation(libs.components.resources.v1101)
             implementation(libs.material.icons.extended)
             implementation(libs.slf4j.nop)
+            implementation(libs.compose.material3.windowSizeClass)
        }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
