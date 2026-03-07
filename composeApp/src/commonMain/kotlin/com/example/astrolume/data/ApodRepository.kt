@@ -4,6 +4,10 @@ import com.example.astrolume.database.ApodEntity
 import com.example.astrolume.database.AppDatabase
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.service.NasaApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
@@ -12,6 +16,28 @@ class ApodRepository(
     private val database: AppDatabase
 ) {
     private val queries = database.appDatabaseQueries
+
+    /**
+     * Returns a Flow that emits the cached version immediately,
+     * then fetches and updates from network.
+     */
+    fun observeLatestApod(): Flow<ApodEntity?> = flow {
+        // 1. Get the latest one we have in the DB (highest date)
+        val cached = queries.getLatestApod().executeAsOneOrNull()
+        if (cached != null) emit(cached)
+
+        // 2. Fetch from Network
+        try {
+            val remote = api.getApodFromServer(null)
+
+            saveToLocal(remote)
+
+            // 4. Emit the updated version
+            emit(queries.getApodByDate(remote.date).executeAsOne())
+        } catch (e: Exception) {
+            // Network failed? No problem, the UI already has the 'cached' version.
+        }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun fetchApod(date: String? = null): ApodEntity {
         // 1. Local check
@@ -58,6 +84,10 @@ class ApodRepository(
     }
 
     private fun saveToLocal(remote: ApodResponse) {
+        val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
+
+        // 2. If it exists, keep the user's favorite status. If not, default to false.
+        val currentFavoriteStatus = existing?.isFavorite ?: false
         queries.insertApod(
             date = remote.date,
             explanation = remote.explanation,
@@ -69,7 +99,7 @@ class ApodRepository(
             thumbnailUrl = remote.thumbnailUrl,
             tags = remote.tags.toJsonString(),
             copyright = remote.copyright,
-            isFavorite = false, // Default to false unless explicitly favorited
+            isFavorite = currentFavoriteStatus,
             createdAt = Clock.System.now().toString(),
             averageRating = remote.averageRating?.toLong(),
             totalVotes = remote.totalVotes?.toLong()

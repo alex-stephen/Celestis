@@ -2,9 +2,7 @@ package com.example.astrolume.ui.navigation
 
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,14 +23,11 @@ fun NavGraph(
         modifier = modifier
     ) {
         composable<Screen.Home> {
-            val viewModel: HomeViewModel = koinViewModel()
-            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val homeViewModel: HomeViewModel = koinViewModel()
 
             HomeScreen(
-                state = state,
-                windowSizeClass = windowSizeClass, // NEW: Pass it to the screen
-                onRefresh = viewModel::refreshAll,
-                onFavoriteToggle = viewModel::toggleFavorite
+                viewModel = homeViewModel,
+                windowSizeClass = windowSizeClass
             )
         }
 

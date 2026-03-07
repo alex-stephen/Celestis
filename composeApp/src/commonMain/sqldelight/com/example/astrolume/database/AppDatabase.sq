@@ -39,3 +39,8 @@ SELECT * FROM ApodEntity WHERE isFavorite = 1 ORDER BY date DESC;
 
 deleteAll:
 DELETE FROM ApodEntity;
+
+getLatestApod:
+SELECT * FROM ApodEntity
+ORDER BY date DESC
+LIMIT 1;
