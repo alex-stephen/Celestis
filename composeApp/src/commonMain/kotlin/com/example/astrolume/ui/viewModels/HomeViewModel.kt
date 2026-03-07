@@ -34,6 +34,9 @@ class HomeViewModel(
     private val _isFetchingRandom = MutableStateFlow(false)
     val isFetchingRandom: StateFlow<Boolean> = _isFetchingRandom.asStateFlow()
 
+    private val randomQueue = ArrayDeque<ApodResponse>()
+    private val PREFETCH_THRESHOLD = 3
+
     private var prefetchJob: Job? = null
     private var prefetchedRandom: ApodResponse? = null
 
@@ -50,6 +53,7 @@ class HomeViewModel(
 
                     if (currentState is HomeUiState.Success) {
                         _uiState.value = currentState.copy(todayApod = today)
+                        refillQueueIfNeeded()
                     } else {
                         _uiState.value = HomeUiState.Success(
                             todayApod = today,
@@ -75,34 +79,46 @@ class HomeViewModel(
 
         _isShowingRandom.value = true
 
-        // Cancel any ongoing fetch if the user is spam-clicking
-        prefetchJob?.cancel()
+        viewModelScope.launch {
+            // 1. Get the next available item from the queue
+            val nextToDisplay = randomQueue.removeFirstOrNull()
+
+            if (nextToDisplay != null) {
+                _uiState.value = currentState.copy(randomApod = nextToDisplay)
+            } else {
+                // Emergency fetch if the user is faster than the internet
+                _isFetchingRandom.value = true
+                val emergency = repository.fetchRandom(1).firstOrNull()
+                if (emergency != null) {
+                    _uiState.value = currentState.copy(randomApod = emergency)
+                }
+                _isFetchingRandom.value = false
+            }
+
+            // 2. Refill the queue in the background
+            refillQueueIfNeeded()
+        }
+    }
+
+    private fun refillQueueIfNeeded() {
+        // Don't start a new job if one is already filling the tank
+        if (prefetchJob?.isActive == true) return
 
         prefetchJob = viewModelScope.launch {
-            _isFetchingRandom.value = true
             try {
-                // 1. Instant UI Swap: Use the one we pre-fetched (or fetch if they clicked too fast)
-                val nextToDisplay = prefetchedRandom ?: repository.fetchRandom(1).firstOrNull()
-
-                if (nextToDisplay != null) {
-                    // Push it to the UI
-                    _uiState.value = currentState.copy(randomApod = nextToDisplay)
+                // Calculate how many we need to hit our target
+                val needed = PREFETCH_THRESHOLD - randomQueue.size
+                if (needed > 0) {
+                    _isFetchingRandom.value = true
+                    val newBatch = repository.fetchRandom(needed)
+                    randomQueue.addAll(newBatch)
                 }
-
-                // 2. Clear the cache
-                prefetchedRandom = null
-
-                // 3. Queue up the NEXT one for the next time they click the button
-                val futureRandom = repository.fetchRandom(1).firstOrNull()
-                prefetchedRandom = futureRandom
-
             } catch (e: Exception) {
-                // Fail silently so the app doesn't crash during exploration
+                // Fail silently
             } finally {
                 _isFetchingRandom.value = false
             }
         }
-
     }
 
     fun showToday() {
