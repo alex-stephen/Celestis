@@ -1,43 +1,53 @@
 package com.example.astrolume.data
 
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToOneOrNull
+import coil3.ImageLoader
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.example.astrolume.Platform
 import com.example.astrolume.database.ApodEntity
 import com.example.astrolume.database.AppDatabase
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.service.NasaApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
 class ApodRepository(
     private val api: NasaApi,
-    private val database: AppDatabase
+    private val database: AppDatabase,
+    private val imageLoader: ImageLoader,
+    private val platform: Platform
 ) {
     private val queries = database.appDatabaseQueries
+    private val json = Json { ignoreUnknownKeys = true }
 
     /**
      * Returns a Flow that emits the cached version immediately,
      * then fetches and updates from network.
      */
-    fun observeLatestApod(): Flow<ApodEntity?> = flow {
-        // 1. Get the latest one we have in the DB (highest date)
-        val cached = queries.getLatestApod().executeAsOneOrNull()
-        if (cached != null) emit(cached)
+    fun observeLatestApod(): Flow<ApodEntity?> =
+        queries.getLatestApod()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+            .onStart {
+                // Trigger a background refresh without blocking the initial cache emission
+                refreshLatest()
+            }
 
-        // 2. Fetch from Network
+    private suspend fun refreshLatest() {
         try {
             val remote = api.getApodFromServer(null)
-
             saveToLocal(remote)
-
-            // 4. Emit the updated version
-            emit(queries.getApodByDate(remote.date).executeAsOne())
         } catch (e: Exception) {
-            // Network failed? No problem, the UI already has the 'cached' version.
+            // Log to Sentry/Crashlytics, but don't crash the Flow
         }
-    }.flowOn(Dispatchers.Default)
+    }
 
     suspend fun fetchApod(date: String? = null): ApodEntity {
         // 1. Local check
@@ -61,7 +71,14 @@ class ApodRepository(
      */
     suspend fun fetchRandom(count: Int): List<ApodResponse> {
         val remotes = api.getRandomApods(count)
-        remotes.forEach { saveToLocal(it) }
+
+        // Batch Insert: Much faster and safer for the DB
+        database.transaction {
+            remotes.forEach { apod ->
+                saveToLocal(apod)
+                precacheImage(apod.url)
+            }
+        }
         return remotes
     }
 
@@ -70,7 +87,12 @@ class ApodRepository(
      */
     suspend fun fetchRange(start: String, end: String): List<ApodResponse> {
         val remotes = api.getApodRange(start, end)
-        remotes.forEach { saveToLocal(it) }
+
+        database.transaction {
+            remotes.forEach { apod ->
+                saveToLocal(apod)
+            }
+        }
         return remotes
     }
 
@@ -83,27 +105,38 @@ class ApodRepository(
         return api.searchAllFields(query)
     }
 
-    private fun saveToLocal(remote: ApodResponse) {
-        val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
+    private fun precacheImage(url: String?) {
+        val request = ImageRequest.Builder(platform.context) // platformContext provided via KMP
+            .data(url)
+            .crossfade(true)
+            .build()
 
-        // 2. If it exists, keep the user's favorite status. If not, default to false.
-        val currentFavoriteStatus = existing?.isFavorite ?: false
-        queries.insertApod(
-            date = remote.date,
-            explanation = remote.explanation,
-            mediaType = remote.mediaType,
-            serviceVersion = remote.serviceVersion,
-            title = remote.title,
-            urlHD = remote.urlHD,
-            url = remote.url,
-            thumbnailUrl = remote.thumbnailUrl,
-            tags = remote.tags.toJsonString(),
-            copyright = remote.copyright,
-            isFavorite = currentFavoriteStatus,
-            createdAt = Clock.System.now().toString(),
-            averageRating = remote.averageRating?.toLong(),
-            totalVotes = remote.totalVotes?.toLong()
-        )
+        imageLoader.enqueue(request)
+    }
+
+    private fun saveToLocal(remote: ApodResponse) {
+        database.transaction {
+            val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
+            val finalExplanation = remote.explanation ?: existing?.explanation
+            val isFav = existing?.isFavorite ?: remote.isFavorite
+
+            queries.insertApod(
+                date = remote.date,
+                explanation = finalExplanation,
+                mediaType = remote.mediaType,
+                serviceVersion = remote.serviceVersion,
+                title = remote.title,
+                urlHD = remote.urlHD,
+                url = remote.url,
+                thumbnailUrl = remote.thumbnailUrl,
+                tags = remote.tags.toJsonString(),
+                copyright = remote.copyright,
+                isFavorite = isFav,
+                createdAt = Clock.System.now().toString(),
+                averageRating = remote.averageRating?.toLong(),
+                totalVotes = remote.totalVotes?.toLong()
+            )
+        }
     }
 
     /**
@@ -118,8 +151,11 @@ class ApodRepository(
      * Toggle favorite status in SQLDelight.
      * This is a local-only operation that makes the UI feel instant.
      */
-    fun toggleFavorite(date: String, shouldBeFavorite: Boolean) {
-        queries.updateFavorite(isFavorite = shouldBeFavorite, date)
+    suspend fun toggleFavorite(date: String, isFavorite: Boolean) {
+        // Fire and forget on a background thread
+        withContext(Dispatchers.IO) {
+            queries.updateFavorite(isFavorite = isFavorite, date)
+        }
     }
 
     fun getLocalFavorites(): List<ApodEntity> {

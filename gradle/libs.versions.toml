@@ -34,10 +34,12 @@ material = "1.10.0"
 
 [libraries]
 androidx-activity-compose-v1124 = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+coil-android = { module = "io.coil-kt.coil3:coil-android", version.ref = "coilCompose" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coilCompose" }
 components-resources-v1101 = { module = "org.jetbrains.compose.components:components-resources", version.ref = "componentsResources" }
 coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktorClientCore" }
 material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
 compose-material3-windowSizeClass = { module = "org.jetbrains.compose.material3:material3-window-size-class", version.ref = "material3" }

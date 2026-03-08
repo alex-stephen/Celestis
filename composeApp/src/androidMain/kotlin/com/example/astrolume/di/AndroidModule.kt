@@ -2,6 +2,8 @@ package com.example.astrolume.di
 
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
+import com.example.astrolume.AndroidPlatform
+import com.example.astrolume.Platform
 import com.example.astrolume.database.AppDatabase
 import org.koin.dsl.module
 
@@ -13,4 +15,10 @@ val androidModule = module {
             name = "astrolume.db"
         )
     }
+
+    single<AppDatabase> {
+        AppDatabase(driver = get())
+    }
+
+    single<Platform> { AndroidPlatform(get()) }
 }

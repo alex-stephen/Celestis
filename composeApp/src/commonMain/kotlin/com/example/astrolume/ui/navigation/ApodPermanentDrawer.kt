@@ -36,7 +36,7 @@ fun ApodPermanentDrawer(
     PermanentNavigationDrawer(
         modifier = modifier,
         drawerContent = {
-            PermanentDrawerSheet(modifier = Modifier.width(240.dp)) {
+            PermanentDrawerSheet(modifier = Modifier.width(220.dp)) {
                 Spacer(Modifier.height(24.dp))
                 Text(
                     text = "Astrolume",

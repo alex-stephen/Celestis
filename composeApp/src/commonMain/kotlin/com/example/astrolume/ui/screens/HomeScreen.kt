@@ -1,8 +1,10 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
@@ -14,15 +16,18 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -55,6 +61,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -80,6 +88,8 @@ import dev.chrisbanes.haze.hazeChild
 fun HomeScreen(
     viewModel: HomeViewModel,
     windowSizeClass: WindowSizeClass,
+    onOpenDrawer: () -> Unit,
+    hazeState: HazeState
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -109,7 +119,9 @@ fun HomeScreen(
                     isFetchingRandom = isFetchingRandom,
                     onRefresh = viewModel::showRandomNext, // Trigger prefetch & swap
                     onBackToToday = viewModel::showToday,
-                    onFavoriteToggle = viewModel::toggleFavorite
+                    onFavoriteToggle = viewModel::toggleFavorite,
+                    onOpenDrawer = onOpenDrawer,
+                    hazeState = hazeState,
                 )
             }
         }
@@ -124,7 +136,9 @@ fun HomeScreenSuccess(
     isFetchingRandom: Boolean,
     onRefresh: () -> Unit,
     onBackToToday: () -> Unit,
-    onFavoriteToggle: (String, Boolean) -> Unit
+    onFavoriteToggle: (String, Boolean) -> Unit,
+    onOpenDrawer: () -> Unit,
+    hazeState: HazeState,
 ) {
     CommonBackHandler(enabled = isShowingRandom) { onBackToToday() }
 
@@ -136,8 +150,6 @@ fun HomeScreenSuccess(
 
     var isExpanded by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(true) }
-    val hazeState = remember { HazeState() }
-
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     val cardWidth by animateDpAsState(
@@ -155,123 +167,263 @@ fun HomeScreenSuccess(
         }, label = "Height"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .haze(state = hazeState) // Apply .haze() ONLY to this layer
-        ) {
-            Crossfade(
-                targetState =
-                    if (displayApod.mediaType.equals("video", ignoreCase = true)) {
-                        displayApod.thumbnailUrl ?: displayApod.url
-                    } else { displayApod.url }
-                , animationSpec = tween(700)) { url ->
-                AsyncImage(
-                    model = url,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { isVisible = !isVisible }
-                )
+    if (isLandscape) {
+        // --- LANDSCAPE LAYOUT ---
+        Box(modifier = Modifier.fillMaxSize()) {
+
+            // Full-screen immersive media
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        isVisible = !isVisible
+                        if (!isVisible) isExpanded = false // Auto-collapse when hiding
+                    }
+            ) {
+                MediaDisplayLayer(url = displayApod.url, hazeState = hazeState)
             }
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(150.dp)
-                .graphicsLayer { alpha = if (isVisible) 1f else 0f }
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
-                    )
-                )
-        )
-
-        // Top Navigation
-        Row(
-            modifier = Modifier
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .padding(16.dp)
-                .graphicsLayer { alpha = if (isVisible) 1f else 0f },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AnimatedVisibility(
-                visible = isShowingRandom,
-                enter = slideInHorizontally() + fadeIn(),
-                exit = slideOutHorizontally() + fadeOut()
+            // Top Navigation & Actions
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .graphicsLayer {
+                        // Fade in/out with the isVisible toggle
+                        alpha = if (isVisible) 1f else 0f
+                        translationY = if (isVisible) 0f else -50f
+                    },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
                 GlassIconButton(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    onClick = onBackToToday,
-                    hazeState = hazeState // haze effect
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Menu",
+                    onClick = onOpenDrawer,
+                    hazeState = hazeState
+                )
+                Row {
+                    AnimatedVisibility(
+                        visible = isShowingRandom,
+                        enter = slideInHorizontally() + fadeIn(),
+                        exit = slideOutHorizontally() + fadeOut()
+                    ) {
+                        GlassIconButton(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            onClick = onBackToToday,
+                            modifier = Modifier.padding(end = 8.dp),
+                            hazeState = hazeState
+                        )
+                    }
+
+                    if (!isShowingRandom) Spacer(Modifier.weight(1f))
+
+                    RandomApodActionButton(
+                        onClick = onRefresh,
+                        hazeState = hazeState,
+                        isLoading = isFetchingRandom
+                    )
+                }
+            }
+
+            displayApod.copyright?.let {
+                Text(
+                    text = "© $it",
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(24.dp)
+                        .graphicsLayer { alpha = if (isVisible) 0.7f else 0f },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White
                 )
             }
 
-            if (!isShowingRandom) Spacer(Modifier.weight(1f))
-
-            RandomApodActionButton(
-                onClick = onRefresh,
-                hazeState = hazeState, // haze
-                isLoading = isFetchingRandom
-
-            )
-        }
-
-        // Copyright Info (centered at bottom of image area)
-        displayApod.copyright?.let {
-            Text(
-                text = "© $it",
+            Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 8.dp)
-                    .graphicsLayer { alpha = if (isVisible) 0.7f else 0f },
-                style = MaterialTheme.typography.labelMedium,
-                color = Color.White
-            )
-        }
-
-        // The Glass Card
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .graphicsLayer {
-                    alpha = if (isVisible) 1f else 0f
-                    transformOrigin = TransformOrigin(1f, 1f) // Anchor point: Bottom-Right
-                    scaleX = if (isVisible) 1f else 0.8f
-                    scaleY = if (isVisible) 1f else 0.8f
-                }
-                .then(if (isLandscape) Modifier.width(cardWidth) else Modifier.fillMaxWidth())
-                .height(cardHeight)
-                .clip(RoundedCornerShape(28.dp))
-                .hazeChild(
-                    state = hazeState,
-                    style = HazeStyle(
-                        backgroundColor = Color(0xFF111111), // Darker for better contrast
-                        blurRadius = 30.dp,
-                        noiseFactor = 0.15f,
-                        tint=null
+                    .align(Alignment.BottomEnd) // Anchored to bottom right like portrait
+                    .padding(end = 24.dp, bottom = 24.dp, top = 80.dp)
+                    .graphicsLayer {
+                        alpha = if (isVisible) 1f else 0f
+                        transformOrigin = TransformOrigin(1f, 1f) // Scale from the bottom right corner
+                        scaleX = if (isVisible) 1f else 0.8f
+                        scaleY = if (isVisible) 1f else 0.8f
+                    }
+                    .animateContentSize(
+                        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+                        alignment = Alignment.BottomEnd
                     )
+                    .then(
+                        if (isExpanded) {
+                            Modifier
+                                .width(if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded) 500.dp else 420.dp)
+                                .fillMaxHeight(0.85f)
+                        } else {
+                            Modifier
+                                .width(340.dp)
+                                .height(160.dp)
+                        }
+                    )
+                    .clip(RoundedCornerShape(32.dp))
+                    .hazeChild(
+                        state = hazeState,
+                        style = HazeStyle(
+                            backgroundColor = Color(0xFF111111),
+                            blurRadius = 40.dp,
+                            noiseFactor = 0.15f,
+                            tint = null
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(Color.White.copy(0.25f), Color.Transparent)
+                        ),
+                        shape = RoundedCornerShape(32.dp)
+                    )
+                    .clickable { isExpanded = !isExpanded }
+            ) {
+                CardContent(
+                    displayApod = displayApod,
+                    title = displayApod.title ?: "Unknown",
+                    explanation = displayApod.explanation ?: "",
+                    isExpanded = isExpanded,
+                    isFavorite = displayApod.isFavorite,
+                    onFavoriteClick = { onFavoriteToggle(displayApod.date, !displayApod.isFavorite) },
+                    hazeState = hazeState
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
-                .clickable { isExpanded = !isExpanded }
-                .animateContentSize()
-        ) {
-            CardContent(
-                displayApod = displayApod,
-                title = displayApod.title ?: "Unknown",
-                explanation = displayApod.explanation ?: "",
-                isExpanded = isExpanded,
-                isFavorite = displayApod.isFavorite,
-                onFavoriteClick = { onFavoriteToggle(displayApod.date, !displayApod.isFavorite) },
-                hazeState = hazeState
+            }
+        }
+    } else {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .haze(state = hazeState) // Apply .haze() ONLY to this layer
+            ) {
+                Crossfade(
+                    targetState =
+                        if (displayApod.mediaType.equals("video", ignoreCase = true)) {
+                            displayApod.thumbnailUrl ?: displayApod.url
+                        } else {
+                            displayApod.url
+                        }, animationSpec = tween(700)
+                ) { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { isVisible = !isVisible }
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .graphicsLayer { alpha = if (isVisible) 1f else 0f }
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
+                        )
+                    )
             )
+
+            // Top Navigation
+            Row(
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .graphicsLayer { alpha = if (isVisible) 1f else 0f },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AnimatedVisibility(
+                    visible = isShowingRandom,
+                    enter = slideInHorizontally() + fadeIn(),
+                    exit = slideOutHorizontally() + fadeOut()
+                ) {
+                    GlassIconButton(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        onClick = onBackToToday,
+                        hazeState = hazeState // haze effect
+                    )
+                }
+
+                if (!isShowingRandom) Spacer(Modifier.weight(1f))
+
+                RandomApodActionButton(
+                    onClick = onRefresh,
+                    hazeState = hazeState, // haze
+                    isLoading = isFetchingRandom
+
+                )
+            }
+
+            // Copyright Info (centered at bottom of image area)
+            displayApod.copyright?.let {
+                Text(
+                    text = "© $it",
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                        .graphicsLayer { alpha = if (isVisible) 0.7f else 0f },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White
+                )
+            }
+
+            // The Glass Card
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp)
+                    .graphicsLayer {
+                        alpha = if (isVisible) 1f else 0f
+                        transformOrigin = TransformOrigin(1f, 1f) // Anchor point: Bottom-Right
+                        scaleX = if (isVisible) 1f else 0.8f
+                        scaleY = if (isVisible) 1f else 0.8f
+                    }
+                    .then(if (isLandscape) Modifier.width(cardWidth) else Modifier.fillMaxWidth())
+                    .height(cardHeight)
+                    .clip(RoundedCornerShape(28.dp))
+                    .hazeChild(
+                        state = hazeState,
+                        style = HazeStyle(
+                            backgroundColor = Color(0xFF111111), // Darker for better contrast
+                            blurRadius = 30.dp,
+                            noiseFactor = 0.15f,
+                            tint = null
+                        )
+                    )
+                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
+                    .clickable { isExpanded = !isExpanded }
+                    .animateContentSize()
+            ) {
+                CardContent(
+                    displayApod = displayApod,
+                    title = displayApod.title ?: "Unknown",
+                    explanation = displayApod.explanation ?: "",
+                    isExpanded = isExpanded,
+                    isFavorite = displayApod.isFavorite,
+                    onFavoriteClick = {
+                        onFavoriteToggle(
+                            displayApod.date,
+                            !displayApod.isFavorite
+                        )
+                    },
+                    hazeState = hazeState
+                )
+            }
         }
     }
 }
@@ -314,22 +466,30 @@ fun CardContent(
                 )
             }
         }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Title Row with crossfade to prevent text jumping during container resize
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
+            AnimatedContent(
+                targetState = title,
+                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
                 modifier = Modifier.weight(1f),
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontSize = 24.sp,
-                maxLines = if (isExpanded) Int.MAX_VALUE else 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                label = "TitleAnimation"
+            ) { targetTitle ->
+                Text(
+                    text = targetTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    maxLines = if (isExpanded) 3 else 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
-            // The Favorite Heart
             IconButton(onClick = onFavoriteClick) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -437,6 +597,34 @@ fun GlassIconButton(
                 modifier = Modifier.size(24.dp)
             )
         }
+    }
+}
+
+@Composable
+fun MediaDisplayLayer(url: String?, hazeState: HazeState) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .haze(state = hazeState)
+    ) {
+        // Layer 1: Blurred Background to prevent letterboxing empty space
+        AsyncImage(
+            model = url,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(50.dp)
+                .alpha(0.4f)
+        )
+
+        // Layer 2: The actual image, fitted properly
+        AsyncImage(
+            model = url,
+            contentDescription = "APOD Image",
+            contentScale = ContentScale.Fit, // Keeps subject perfectly in frame
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 
