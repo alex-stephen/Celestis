@@ -186,48 +186,56 @@ fun HomeScreenSuccess(
                 MediaDisplayLayer(url = displayApod.url, hazeState = hazeState)
             }
 
-            // Top Navigation & Actions
-            Row(
-                modifier = Modifier
-                    .statusBarsPadding()
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .graphicsLayer {
-                        // Fade in/out with the isVisible toggle
-                        alpha = if (isVisible) 1f else 0f
-                        translationY = if (isVisible) 0f else -50f
-                    },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn() + slideInHorizontally { -20 },
+                exit = fadeOut() + slideOutHorizontally { -20 }
             ) {
-                GlassIconButton(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    onClick = onOpenDrawer,
-                    hazeState = hazeState
-                )
-                Row {
-                    AnimatedVisibility(
-                        visible = isShowingRandom,
-                        enter = slideInHorizontally() + fadeIn(),
-                        exit = slideOutHorizontally() + fadeOut()
-                    ) {
-                        GlassIconButton(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            onClick = onBackToToday,
-                            modifier = Modifier.padding(end = 8.dp),
-                            hazeState = hazeState
+                Row(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .graphicsLayer {
+                            // Fade in/out with the isVisible toggle
+                            alpha = if (isVisible) 1f else 0f
+                            translationY = if (isVisible) 0f else -50f
+                        },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    GlassIconButton(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Menu",
+                        onClick = onOpenDrawer,
+                        hazeState = hazeState,
+                        enabled = isVisible
+                    )
+                    Row {
+                        AnimatedVisibility(
+                            visible = isShowingRandom,
+                            enter = slideInHorizontally() + fadeIn(),
+                            exit = slideOutHorizontally() + fadeOut()
+                        ) {
+                            GlassIconButton(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                onClick = onBackToToday,
+                                modifier = Modifier.padding(end = 8.dp),
+                                hazeState = hazeState,
+                                enabled = isVisible
+                            )
+                        }
+
+                        if (!isShowingRandom) Spacer(Modifier.weight(1f))
+
+                        RandomApodActionButton(
+                            onClick = onRefresh,
+                            hazeState = hazeState,
+                            isLoading = isFetchingRandom,
+                            enabled = isVisible,
                         )
                     }
-
-                    if (!isShowingRandom) Spacer(Modifier.weight(1f))
-
-                    RandomApodActionButton(
-                        onClick = onRefresh,
-                        hazeState = hazeState,
-                        isLoading = isFetchingRandom
-                    )
                 }
             }
 
@@ -293,6 +301,7 @@ fun HomeScreenSuccess(
                     explanation = displayApod.explanation ?: "",
                     isExpanded = isExpanded,
                     isFavorite = displayApod.isFavorite,
+                    isVisible = isVisible,
                     onFavoriteClick = { onFavoriteToggle(displayApod.date, !displayApod.isFavorite) },
                     hazeState = hazeState
                 )
@@ -355,7 +364,8 @@ fun HomeScreenSuccess(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         onClick = onBackToToday,
-                        hazeState = hazeState // haze effect
+                        hazeState = hazeState,
+                        enabled = isVisible
                     )
                 }
 
@@ -364,7 +374,8 @@ fun HomeScreenSuccess(
                 RandomApodActionButton(
                     onClick = onRefresh,
                     hazeState = hazeState, // haze
-                    isLoading = isFetchingRandom
+                    isLoading = isFetchingRandom,
+                    enabled = isVisible,
 
                 )
             }
@@ -406,7 +417,7 @@ fun HomeScreenSuccess(
                         )
                     )
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable(enabled = isVisible) { isExpanded = !isExpanded }
                     .animateContentSize()
             ) {
                 CardContent(
@@ -415,6 +426,7 @@ fun HomeScreenSuccess(
                     explanation = displayApod.explanation ?: "",
                     isExpanded = isExpanded,
                     isFavorite = displayApod.isFavorite,
+                    isVisible = isVisible,
                     onFavoriteClick = {
                         onFavoriteToggle(
                             displayApod.date,
@@ -434,6 +446,7 @@ fun CardContent(
     explanation: String,
     isExpanded: Boolean,
     isFavorite: Boolean,
+    isVisible: Boolean,
     onFavoriteClick: () -> Unit,
     hazeState: HazeState
 ) {
@@ -490,11 +503,11 @@ fun CardContent(
                 )
             }
 
-            IconButton(onClick = onFavoriteClick) {
+            IconButton(onClick = onFavoriteClick, enabled = isVisible) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = "Favorite",
-                    tint = if (isFavorite) Color.Red else Color.White,
+                    tint = if (isFavorite) Color.Red else Color.White.copy(alpha = if(isVisible) 1f else 0f),
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -525,7 +538,11 @@ fun CardContent(
 
 
 @Composable
-fun RandomApodActionButton(onClick: () -> Unit, hazeState: HazeState, isLoading: Boolean) {
+fun RandomApodActionButton(
+    onClick: () -> Unit,
+    hazeState: HazeState,
+    isLoading: Boolean,
+    enabled: Boolean = true) {
     val infiniteTransition = rememberInfiniteTransition(label = "RainbowTransition")
 
     // Animates the hue from 0 to 360 degrees infinitely
@@ -558,10 +575,10 @@ fun RandomApodActionButton(onClick: () -> Unit, hazeState: HazeState, isLoading:
                 )
             )
             .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Filled.AutoAwesome, "Surprise Me", tint = iconColor)
+        Icon(Icons.Filled.AutoAwesome, "Surprise Me", tint = iconColor.copy(alpha = if (enabled) 1f else 0f))
     }
 }
 
@@ -571,10 +588,12 @@ fun GlassIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    hazeState: HazeState
+    hazeState: HazeState,
+    enabled: Boolean = true
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         color = Color.Transparent,
         modifier = modifier
             .size(56.dp)
@@ -587,7 +606,7 @@ fun GlassIconButton(
                     tint = null
                 )
             )
-            .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            .border(1.dp, Color.White.copy(alpha = if (enabled) 0.2f else 0f), CircleShape)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(

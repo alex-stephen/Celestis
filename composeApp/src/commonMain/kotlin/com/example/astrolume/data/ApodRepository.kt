@@ -13,8 +13,7 @@ import com.example.astrolume.service.NasaApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
@@ -25,22 +24,22 @@ class ApodRepository(
     private val platform: Platform
 ) {
     private val queries = database.appDatabaseQueries
-    private val json = Json { ignoreUnknownKeys = true }
+
 
     /**
      * Returns a Flow that emits the cached version immediately,
      * then fetches and updates from network.
      */
-    fun observeLatestApod(): Flow<ApodEntity?> =
-        queries.getLatestApod()
+    fun observeLatestApod(): Flow<ApodResponse?> {
+        return queries.getLatestApod()
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
-            .onStart {
-                // Trigger a background refresh without blocking the initial cache emission
-                refreshLatest()
+            .map { entity ->
+                entity?.toResponse() // Map the DB Entity back to your Response model
             }
+    }
 
-    private suspend fun refreshLatest() {
+    suspend fun refreshLatest() {
         try {
             val remote = api.getApodFromServer(null)
             saveToLocal(remote)
@@ -71,14 +70,11 @@ class ApodRepository(
      */
     suspend fun fetchRandom(count: Int): List<ApodResponse> {
         val remotes = api.getRandomApods(count)
-
-        // Batch Insert: Much faster and safer for the DB
         database.transaction {
-            remotes.forEach { apod ->
-                saveToLocal(apod)
-                precacheImage(apod.url)
-            }
+            remotes.forEach { innerSaveToLocal(it) }
         }
+        // Cache images after DB is confirmed
+        remotes.forEach { precacheImage(it.url) }
         return remotes
     }
 
@@ -90,7 +86,7 @@ class ApodRepository(
 
         database.transaction {
             remotes.forEach { apod ->
-                saveToLocal(apod)
+                innerSaveToLocal(apod)
             }
         }
         return remotes
@@ -106,36 +102,43 @@ class ApodRepository(
     }
 
     private fun precacheImage(url: String?) {
+        url ?: return
         val request = ImageRequest.Builder(platform.context) // platformContext provided via KMP
             .data(url)
             .crossfade(true)
             .build()
-
         imageLoader.enqueue(request)
     }
 
+    private fun innerSaveToLocal(remote: ApodResponse, forceFavorite: Boolean? = null) {
+        val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
+        val finalExplanation = remote.explanation ?: existing?.explanation
+        val isFav = forceFavorite ?: existing?.isFavorite ?: remote.isFavorite
+
+        queries.insertApod(
+            date = remote.date,
+            explanation = finalExplanation,
+            mediaType = remote.mediaType,
+            serviceVersion = remote.serviceVersion,
+            title = remote.title,
+            urlHD = remote.urlHD,
+            url = remote.url,
+            thumbnailUrl = remote.thumbnailUrl,
+            tags = remote.tags.toJsonString(),
+            copyright = remote.copyright,
+            isFavorite = isFav,
+            createdAt = Clock.System.now().toEpochMilliseconds().toString(),
+            averageRating = remote.averageRating?.toLong(),
+            totalVotes = remote.totalVotes?.toLong()
+        )
+    }
+
+    /**
+     * Public entry point for saving a single APOD.
+     */
     private fun saveToLocal(remote: ApodResponse) {
         database.transaction {
-            val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
-            val finalExplanation = remote.explanation ?: existing?.explanation
-            val isFav = existing?.isFavorite ?: remote.isFavorite
-
-            queries.insertApod(
-                date = remote.date,
-                explanation = finalExplanation,
-                mediaType = remote.mediaType,
-                serviceVersion = remote.serviceVersion,
-                title = remote.title,
-                urlHD = remote.urlHD,
-                url = remote.url,
-                thumbnailUrl = remote.thumbnailUrl,
-                tags = remote.tags.toJsonString(),
-                copyright = remote.copyright,
-                isFavorite = isFav,
-                createdAt = Clock.System.now().toString(),
-                averageRating = remote.averageRating?.toLong(),
-                totalVotes = remote.totalVotes?.toLong()
-            )
+            innerSaveToLocal(remote)
         }
     }
 
@@ -151,10 +154,18 @@ class ApodRepository(
      * Toggle favorite status in SQLDelight.
      * This is a local-only operation that makes the UI feel instant.
      */
-    suspend fun toggleFavorite(date: String, isFavorite: Boolean) {
-        // Fire and forget on a background thread
-        withContext(Dispatchers.IO) {
-            queries.updateFavorite(isFavorite = isFavorite, date)
+    suspend fun toggleFavorite(date: String, isFavorite: Boolean, apod: ApodResponse? = null) {
+        database.transaction {
+            // 1. Check if it exists
+            val existing = queries.getApodByDate(date).executeAsOneOrNull()
+
+            if (existing == null && apod != null) {
+                // 2. If it's a random image not yet saved, INSERT it now
+                innerSaveToLocal(apod, forceFavorite = isFavorite)
+            } else {
+                // 3. If it already exists, just flip the bit
+                queries.updateFavorite(isFavorite, date)
+            }
         }
     }
 
@@ -186,7 +197,30 @@ fun ApodEntity.toResponse(): ApodResponse {
         mediaType = this.mediaType,
         copyright = this.copyright,
         thumbnailUrl = this.thumbnailUrl,
-        // Convert the JSON string back into a List<String>
-        tags = Json.decodeFromString<List<String>>(this.tags ?: "[]")
+        isFavorite = this.isFavorite,
+        tags = try {
+            Json.decodeFromString<List<String>>(this.tags ?: "[]")
+        } catch (e: Exception) {
+            emptyList()
+        }
+    )
+}
+
+fun ApodResponse.toEntityArgs(isFavOverride: Boolean? = null): ApodEntity {
+    return ApodEntity(
+        date = this.date,
+        explanation = this.explanation,
+        mediaType = this.mediaType,
+        serviceVersion = this.serviceVersion,
+        title = this.title,
+        urlHD = this.urlHD,
+        url = this.url,
+        thumbnailUrl = this.thumbnailUrl,
+        tags = Json.encodeToString(this.tags),
+        copyright = this.copyright,
+        isFavorite = isFavOverride ?: this.isFavorite,
+        createdAt = Clock.System.now().toEpochMilliseconds().toString(),
+        averageRating = this.averageRating?.toLong(),
+        totalVotes = this.totalVotes?.toLong()
     )
 }
