@@ -454,7 +454,7 @@ fun CardContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp), // Space between the pill and the title
+                .padding(bottom = 4.dp), // Space between the pill and the title
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -479,7 +479,6 @@ fun CardContent(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
 
         // Title Row with crossfade to prevent text jumping during container resize
         Row(
@@ -513,7 +512,7 @@ fun CardContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // We wrap the description in a LazyColumn so it's scrollable when expanded
         val scrollState = rememberLazyListState()
