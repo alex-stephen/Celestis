@@ -3,14 +3,16 @@ package com.example.astrolume.ui.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.astrolume.data.ApodRepository
-import com.example.astrolume.data.toResponse
 import com.example.astrolume.model.ApodResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed interface HomeUiState {
@@ -26,9 +28,28 @@ class HomeViewModel(
     private val repository: ApodRepository
 ) : ViewModel() {
 
+    private val todayApodFlow = repository.observeLatestApod()
+
+    // 2. The Random Stream (Managed in memory, then saved if favorited)
+    private val _randomApod = MutableStateFlow<ApodResponse?>(null)
     // Internal State
-    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    val uiState: StateFlow<HomeUiState> = combine(
+        todayApodFlow,
+        _randomApod
+    ) { today, random ->
+        if (today == null) {
+            HomeUiState.Loading
+        } else {
+            HomeUiState.Success(
+                todayApod = today,
+                randomApod = random
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = HomeUiState.Loading
+    )
 
     private val _isShowingRandom = MutableStateFlow(false)
     val isShowingRandom: StateFlow<Boolean> = _isShowingRandom.asStateFlow()
@@ -40,35 +61,10 @@ class HomeViewModel(
     private val PREFETCH_THRESHOLD = 3
 
     private var prefetchJob: Job? = null
-    private var prefetchedRandom: ApodResponse? = null
 
     init {
-        loadInitialData()
-    }
-
-    private fun loadInitialData() {
-        viewModelScope.launch {
-            repository.observeLatestApod().collect { apodEntity ->
-                if (apodEntity != null) {
-                    val today = apodEntity.toResponse()
-                    val currentState = _uiState.value
-
-                    if (currentState is HomeUiState.Success) {
-                        _uiState.value = currentState.copy(todayApod = today)
-                        refillQueueIfNeeded()
-                    } else {
-                        _uiState.value = HomeUiState.Success(
-                            todayApod = today,
-                            randomApod = null
-                        )
-                        // Trigger the very first background prefetch
-                        queueNextRandomInBackground()
-                    }
-                } else {
-                    _uiState.value = HomeUiState.Error("No space data found.")
-                }
-            }
-        }
+        refreshAll()
+        refillQueueIfNeeded()
     }
 
     /**
@@ -76,28 +72,20 @@ class HomeViewModel(
      * then fetches the next one in the background.
      */
     fun showRandomNext() {
-        val currentState = _uiState.value
-        if (currentState !is HomeUiState.Success) return
-
-        _isShowingRandom.value = true
-
         viewModelScope.launch {
-            // 1. Get the next available item from the queue
             val nextToDisplay = randomQueue.removeFirstOrNull()
 
             if (nextToDisplay != null) {
-                _uiState.value = currentState.copy(randomApod = nextToDisplay)
+                _randomApod.value = nextToDisplay
+                _isShowingRandom.value = true
             } else {
-                // Emergency fetch if the user is faster than the internet
                 _isFetchingRandom.value = true
                 val emergency = repository.fetchRandom(1).firstOrNull()
-                if (emergency != null) {
-                    _uiState.value = currentState.copy(randomApod = emergency)
-                }
+                _randomApod.value = emergency
+                _isShowingRandom.value = true
                 _isFetchingRandom.value = false
             }
 
-            // 2. Refill the queue in the background
             refillQueueIfNeeded()
         }
     }
@@ -127,44 +115,25 @@ class HomeViewModel(
         _isShowingRandom.value = false
     }
 
-    private fun queueNextRandomInBackground() {
-        if (prefetchJob?.isActive == true) return // Don't fetch if already fetching
-
-        prefetchJob = viewModelScope.launch {
-            try {
-                val randomList = repository.fetchRandom(1)
-                prefetchedRandom = randomList.firstOrNull()
-            } catch (e: Exception) {
-                // Ignore
-            }
-        }
-    }
-
     fun toggleFavorite(date: String, isFav: Boolean) {
         // Optimistic UI Updates
-        val currentState = _uiState.value
-        if (currentState is HomeUiState.Success) {
-            val updatedToday = if (currentState.todayApod.date == date) {
-                currentState.todayApod.copy(isFavorite = isFav)
-            } else currentState.todayApod
+        val currentState = uiState.value as? HomeUiState.Success ?: return
 
-            val updatedRandom = if (currentState.randomApod?.date == date) {
-                currentState.randomApod.copy(isFavorite = isFav)
-            } else currentState.randomApod
+        val isToday = currentState.todayApod.date == date
+        val targetApod = if (isToday) currentState.todayApod else currentState.randomApod
 
-            _uiState.value = currentState.copy(
-                todayApod = updatedToday,
-                randomApod = updatedRandom
-            )
+        if (!isToday && currentState.randomApod?.date == date) {
+            _randomApod.value = currentState.randomApod.copy(isFavorite = isFav)
         }
 
-        // Fire the actual DB update in the background
         viewModelScope.launch(Dispatchers.IO) {
-            repository.toggleFavorite(date, isFav)
+            repository.toggleFavorite(date, isFav, targetApod)
         }
     }
 
     fun refreshAll() {
-        loadInitialData()
+        viewModelScope.launch {
+            repository.refreshLatest()
+        }
     }
 }

@@ -37,12 +37,20 @@ class NasaApi(private val client: HttpClient) {
  }
 
  suspend fun getApodRange(start: String, end: String): List<ApodResponse> {
-   return client.get("$baseUrl/range") {
-    url {
-     parameters.append("start_date", start)
-     parameters.append("end_date", end)
-    }
-   }.body()
+     val response = client.get("$baseUrl/range") {
+         url {
+             parameters.append("start_date", start)
+             parameters.append("end_date", end)
+         }
+     }
+
+     return when (response.status.value) {
+     200 -> response.body<List<ApodResponse>>()
+             // 204 No Content
+             204 -> emptyList()
+             400 -> throw Exception("Invalid range requested: $start - $end")
+             else -> handleCommonErrors(response)
+         }
  }
 
  // The Fuzzy Text Search we built with Atlas Search

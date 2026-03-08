@@ -37,8 +37,10 @@ UPDATE ApodEntity SET isFavorite = ? WHERE date = ?;
 getAllFavorites:
 SELECT * FROM ApodEntity WHERE isFavorite = 1 ORDER BY date DESC;
 
-deleteAll:
-DELETE FROM ApodEntity;
+deleteOldNonFavorites:
+DELETE FROM ApodEntity
+WHERE isFavorite = 0
+AND date != ?;
 
 getLatestApod:
 SELECT * FROM ApodEntity
