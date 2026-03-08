@@ -8,13 +8,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.astrolume.ui.screens.HomeScreen
 import com.example.astrolume.ui.viewModels.HomeViewModel
+import dev.chrisbanes.haze.HazeState
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun NavGraph(
     navController: NavHostController,
     windowSizeClass: WindowSizeClass,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenDrawer: () -> Unit,
+    hazeState: HazeState
 ) {
     NavHost(
         navController = navController,
@@ -27,7 +30,9 @@ fun NavGraph(
 
             HomeScreen(
                 viewModel = homeViewModel,
-                windowSizeClass = windowSizeClass
+                windowSizeClass = windowSizeClass,
+                onOpenDrawer = onOpenDrawer,
+                hazeState = hazeState
             )
         }
 

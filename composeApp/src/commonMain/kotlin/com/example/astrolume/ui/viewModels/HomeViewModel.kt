@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.data.toResponse
 import com.example.astrolume.model.ApodResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -139,7 +141,25 @@ class HomeViewModel(
     }
 
     fun toggleFavorite(date: String, isFav: Boolean) {
-        viewModelScope.launch {
+        // Optimistic UI Updates
+        val currentState = _uiState.value
+        if (currentState is HomeUiState.Success) {
+            val updatedToday = if (currentState.todayApod.date == date) {
+                currentState.todayApod.copy(isFavorite = isFav)
+            } else currentState.todayApod
+
+            val updatedRandom = if (currentState.randomApod?.date == date) {
+                currentState.randomApod.copy(isFavorite = isFav)
+            } else currentState.randomApod
+
+            _uiState.value = currentState.copy(
+                todayApod = updatedToday,
+                randomApod = updatedRandom
+            )
+        }
+
+        // Fire the actual DB update in the background
+        viewModelScope.launch(Dispatchers.IO) {
             repository.toggleFavorite(date, isFav)
         }
     }
