@@ -6,7 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.astrolume.ui.screens.DiscoverScreen
 import com.example.astrolume.ui.screens.HomeScreen
+import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
 import org.koin.compose.viewmodel.koinViewModel
@@ -37,7 +39,8 @@ fun NavGraph(
         }
 
         composable<Screen.Search> {
-            // Future: val viewModel: SearchViewModel = koinViewModel()
+            val viewModel: DiscoverViewModel = koinViewModel()
+            DiscoverScreen(viewModel)
         }
 
         composable<Screen.Favorites> {

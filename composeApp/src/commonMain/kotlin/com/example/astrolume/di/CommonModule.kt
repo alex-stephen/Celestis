@@ -8,6 +8,7 @@ import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.network.createHttpClient
 import com.example.astrolume.service.NasaApi
 import com.example.astrolume.ui.viewModels.ApodViewModel
+import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import io.ktor.client.HttpClient
 import org.koin.core.module.dsl.viewModel
@@ -31,6 +32,8 @@ val commonModule = module {
     }
 
     viewModel { ApodViewModel(get()) }
+
+    viewModel { DiscoverViewModel(get()) }
 
     viewModel { HomeViewModel(get()) }
 }
