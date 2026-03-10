@@ -17,9 +17,6 @@ CREATE TABLE ApodEntity (
     totalVotes INTEGER
 );
 
--- Indexing favorites makes the "My Favorites" screen load instantly
-CREATE INDEX IF NOT EXISTS apod_favorite_index ON ApodEntity(isFavorite);
-
 insertApod:
 INSERT OR REPLACE INTO ApodEntity(
     date, explanation, mediaType, serviceVersion,
@@ -46,3 +43,16 @@ getLatestApod:
 SELECT * FROM ApodEntity
 ORDER BY date DESC
 LIMIT 1;
+
+CREATE INDEX IF NOT EXISTS apod_date_idx ON ApodEntity(date);
+
+searchLocalApods:
+SELECT *
+FROM ApodEntity
+WHERE (title LIKE :query
+   OR explanation LIKE :query
+   OR tags LIKE :query
+   OR copyright LIKE :query)
+ORDER BY date DESC;
+-- Indexing favorites makes the "My Favorites" screen load instantly
+CREATE INDEX IF NOT EXISTS apod_favorite_index ON ApodEntity(isFavorite);

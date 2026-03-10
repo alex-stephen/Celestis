@@ -54,9 +54,10 @@ class NasaApi(private val client: HttpClient) {
  }
 
  // The Fuzzy Text Search we built with Atlas Search
- suspend fun searchAllFields(query: String): List<ApodResponse> {
+ suspend fun searchAllFields(query: String, page: Int): List<ApodResponse> {
    val response = client.get("$baseUrl/search") {
-    url { parameters.append("q", query) }
+    url { parameters.append("q", query)
+        parameters.append("page", page.toString())}
    }
 
    return when (response.status.value) {

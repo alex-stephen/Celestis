@@ -5,6 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed interface Screen {
     @Serializable object Home : Screen
-    @Serializable object Search : Screen
+    @Serializable object Discover : Screen
     @Serializable object Favorites : Screen
 }
