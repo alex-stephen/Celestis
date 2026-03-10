@@ -1,6 +1,7 @@
 package com.example.astrolume.data
 
 import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import coil3.ImageLoader
 import coil3.request.ImageRequest
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
 
@@ -93,14 +95,32 @@ class ApodRepository(
     }
 
     /**
+     * Observes search results directly from the local database.
+     * This ensures the UI updates automatically when new network data is inserted.
+     */
+    fun observeSearch(query: String): Flow<List<ApodResponse>> {
+        // We use a LIKE operator in SQLDelight to filter the local cache
+        return queries.searchLocalApods("%$query%")
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { entities -> entities.map { it.toResponse() } }
+    }
+    /**
      * Executes the Atlas Search.
      * Note: We don't save these to Local DB immediately because
      * search results are "Thin" (missing explanations).
      */
-    suspend fun search(query: String): List<ApodResponse> {
-        return api.searchAllFields(query)
-    }
+    suspend fun search(query: String, page: Int = 0): List<ApodResponse> = withContext(Dispatchers.IO) {
+        val remotes = api.searchAllFields(query, page = page) // Update NasaApi to accept 'page'
 
+        database.transaction {
+            remotes.forEach { apod ->
+                // Use your existing innerSaveToLocal which handles UPSERTs
+                innerSaveToLocal(apod)
+            }
+        }
+        remotes
+    }
     private fun precacheImage(url: String?) {
         url ?: return
         val request = ImageRequest.Builder(platform.context) // platformContext provided via KMP
@@ -140,14 +160,6 @@ class ApodRepository(
         database.transaction {
             innerSaveToLocal(remote)
         }
-    }
-
-    /**
-     * Executes a fuzzy search.
-     * We return the List<ApodResponse> directly to the UI.
-     */
-    suspend fun searchGlobal(query: String): List<ApodResponse> {
-        return api.searchAllFields(query)
     }
 
     /**

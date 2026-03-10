@@ -38,7 +38,7 @@ fun NavGraph(
             )
         }
 
-        composable<Screen.Search> {
+        composable<Screen.Discover> {
             val viewModel: DiscoverViewModel = koinViewModel()
             DiscoverScreen(viewModel)
         }

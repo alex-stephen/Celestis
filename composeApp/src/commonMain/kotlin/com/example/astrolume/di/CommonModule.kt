@@ -7,7 +7,6 @@ import com.example.astrolume.Platform
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.network.createHttpClient
 import com.example.astrolume.service.NasaApi
-import com.example.astrolume.ui.viewModels.ApodViewModel
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import io.ktor.client.HttpClient
@@ -30,8 +29,6 @@ val commonModule = module {
             }
             .build()
     }
-
-    viewModel { ApodViewModel(get()) }
 
     viewModel { DiscoverViewModel(get()) }
 

@@ -3,7 +3,7 @@ package com.example.astrolume.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,7 +24,7 @@ fun ApodBottomNavBar(navController: NavHostController) {
     NavigationBar {
         val items = listOf(
             Triple(Screen.Home, Icons.Default.Home, "Home"),
-            Triple(Screen.Search, Icons.Default.Search, "Search"),
+            Triple(Screen.Discover, Icons.Default.TravelExplore, "Discover"),
             Triple(Screen.Favorites, Icons.Default.Favorite, "Saved")
         )
 
