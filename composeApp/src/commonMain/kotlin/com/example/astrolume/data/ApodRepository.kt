@@ -197,6 +197,18 @@ class ApodRepository(
     fun List<String>?.toJsonString(): String {
         return Json.encodeToString<List<String>>(this ?: emptyList())
     }
+    suspend fun pruneCacheIfNeeded() = withContext(Dispatchers.IO) {
+        val nonFavCount = queries.countNonFavorites().executeAsOne()
+
+        // Only prune if the database is getting "heavy" (e.g., > 200 cached randoms)
+        if (nonFavCount > 500) {
+            try {
+                queries.deleteOldNonFavorites()
+            } catch (e: Exception) {
+                // Log "Maintenance Failed" but don't crash the user's experience
+            }
+        }
+    }
 }
 
 fun ApodEntity.toResponse(): ApodResponse {

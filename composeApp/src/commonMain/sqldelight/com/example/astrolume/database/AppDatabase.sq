@@ -37,7 +37,11 @@ SELECT * FROM ApodEntity WHERE isFavorite = 1 ORDER BY date DESC;
 deleteOldNonFavorites:
 DELETE FROM ApodEntity
 WHERE isFavorite = 0
-AND date != ?;
+AND date NOT IN (
+    SELECT date FROM ApodEntity
+    ORDER BY date DESC
+    LIMIT 500
+);
 
 getLatestApod:
 SELECT * FROM ApodEntity
@@ -56,3 +60,6 @@ WHERE (title LIKE :query
 ORDER BY date DESC;
 -- Indexing favorites makes the "My Favorites" screen load instantly
 CREATE INDEX IF NOT EXISTS apod_favorite_index ON ApodEntity(isFavorite);
+
+countNonFavorites:
+SELECT COUNT(*) FROM ApodEntity WHERE isFavorite = 0;

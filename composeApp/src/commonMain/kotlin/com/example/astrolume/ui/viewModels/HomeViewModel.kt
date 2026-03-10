@@ -58,55 +58,75 @@ class HomeViewModel(
     val isFetchingRandom: StateFlow<Boolean> = _isFetchingRandom.asStateFlow()
 
     private val randomQueue = ArrayDeque<ApodResponse>()
-    private val PREFETCH_THRESHOLD = 3
+    private val TARGET_CAPACITY = 20  // Keep 20 items ready
+    private val REFILL_THRESHOLD = 10 // Trigger refill when half are gone
+    private val BATCH_SIZE = 10
 
+    private val _isRefilling = MutableStateFlow(false)
     private var prefetchJob: Job? = null
 
     init {
         refreshAll()
-        refillQueueIfNeeded()
+        refillQueue(initial = true)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.pruneCacheIfNeeded()
+        }
     }
 
     /**
      * The Snappy Random Logic: Uses the cached image instantly,
      * then fetches the next one in the background.
      */
-    fun showRandomNext() {
-        viewModelScope.launch {
-            val nextToDisplay = randomQueue.removeFirstOrNull()
+    fun showNextRandom() {
+        if (randomQueue.isEmpty()) {
+            // Emergency fallback - should rarely happen with 20 capacity
+            fetchEmergencySingle()
+            return
+        }
 
-            if (nextToDisplay != null) {
-                _randomApod.value = nextToDisplay
-                _isShowingRandom.value = true
-            } else {
-                _isFetchingRandom.value = true
-                val emergency = repository.fetchRandom(1).firstOrNull()
-                _randomApod.value = emergency
-                _isShowingRandom.value = true
-                _isFetchingRandom.value = false
-            }
+        val next = randomQueue.removeFirst()
+        _randomApod.value = next
+        _isShowingRandom.value = true
 
-            refillQueueIfNeeded()
+        // Check if we need to top up the tank
+        if (randomQueue.size <= REFILL_THRESHOLD) {
+            refillQueue()
         }
     }
 
-    private fun refillQueueIfNeeded() {
-        // Don't start a new job if one is already filling the tank
+    private fun refillQueue(initial: Boolean = false) {
         if (prefetchJob?.isActive == true) return
 
         prefetchJob = viewModelScope.launch {
+            _isRefilling.value = true
             try {
-                // Calculate how many we need to hit our target
-                val needed = PREFETCH_THRESHOLD - randomQueue.size
-                if (needed > 0) {
-                    _isFetchingRandom.value = true
-                    val newBatch = repository.fetchRandom(needed)
-                    randomQueue.addAll(newBatch)
+                val needed = if (initial) TARGET_CAPACITY else BATCH_SIZE
+                val newItems = repository.fetchRandom(needed)
+
+                randomQueue.addAll(newItems)
+
+                // If it was the first time ever, show the first item immediately
+                if (initial && _randomApod.value == null) {
+                    _randomApod.value = randomQueue.removeFirstOrNull()
                 }
             } catch (e: Exception) {
-                // Fail silently
+                // Network error - we'll try again on the next swipe
+            } finally {
+                _isRefilling.value = false
+            }
+        }
+    }
+
+    private fun fetchEmergencySingle() {
+        viewModelScope.launch {
+            _isFetchingRandom.value = true
+            try {
+                val item = repository.fetchRandom(1).firstOrNull()
+                _randomApod.value = item
             } finally {
                 _isFetchingRandom.value = false
+                refillQueue() // Attempt to fix the empty queue
             }
         }
     }
