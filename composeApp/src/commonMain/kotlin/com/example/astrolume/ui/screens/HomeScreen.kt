@@ -108,7 +108,7 @@ fun HomeScreen(
             }
 
             is HomeUiState.Error -> {
-                HomeScreenError(state, onRefresh = viewModel::showRandomNext)
+                HomeScreenError(state, onRefresh = viewModel::showNextRandom)
             }
 
             is HomeUiState.Success -> {
@@ -117,7 +117,7 @@ fun HomeScreen(
                     windowSizeClass = windowSizeClass,
                     isShowingRandom = isShowingRandom,
                     isFetchingRandom = isFetchingRandom,
-                    onRefresh = viewModel::showRandomNext, // Trigger prefetch & swap
+                    onRefresh = viewModel::showNextRandom, // Trigger prefetch & swap
                     onBackToToday = viewModel::showToday,
                     onFavoriteToggle = viewModel::toggleFavorite,
                     onOpenDrawer = onOpenDrawer,

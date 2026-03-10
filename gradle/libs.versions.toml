@@ -18,6 +18,7 @@ koin = "4.1.1"
 kotlin = "2.3.0"
 kotlinxCoroutines = "1.10.1"
 kotlinxDatetime = "0.6.1"
+kotlinxDatetimeVersion = "0.6.0"
 ktorClientContentNegotiation = "3.4.0"
 ktorClientCore = "3.4.0"
 ktorClientDarwin = "3.4.0"
@@ -39,6 +40,7 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCo
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coilCompose" }
 components-resources-v1101 = { module = "org.jetbrains.compose.components:components-resources", version.ref = "componentsResources" }
 coroutines-extensions = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+kotlinx-datetime-v060 = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetimeVersion" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktorClientCore" }
 material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
