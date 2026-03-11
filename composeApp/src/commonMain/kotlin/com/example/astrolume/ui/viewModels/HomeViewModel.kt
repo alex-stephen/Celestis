@@ -54,15 +54,13 @@ class HomeViewModel(
     private val _isShowingRandom = MutableStateFlow(false)
     val isShowingRandom: StateFlow<Boolean> = _isShowingRandom.asStateFlow()
 
-    private val _isFetchingRandom = MutableStateFlow(false)
-    val isFetchingRandom: StateFlow<Boolean> = _isFetchingRandom.asStateFlow()
-
     private val randomQueue = ArrayDeque<ApodResponse>()
     private val TARGET_CAPACITY = 20  // Keep 20 items ready
     private val REFILL_THRESHOLD = 10 // Trigger refill when half are gone
     private val BATCH_SIZE = 10
 
     private val _isRefilling = MutableStateFlow(false)
+    val isRefilling: StateFlow<Boolean> = _isRefilling.asStateFlow()
     private var prefetchJob: Job? = null
 
     init {
@@ -120,12 +118,12 @@ class HomeViewModel(
 
     private fun fetchEmergencySingle() {
         viewModelScope.launch {
-            _isFetchingRandom.value = true
+            _isRefilling.value = true
             try {
                 val item = repository.fetchRandom(1).firstOrNull()
                 _randomApod.value = item
             } finally {
-                _isFetchingRandom.value = false
+                _isRefilling.value = false
                 refillQueue() // Attempt to fix the empty queue
             }
         }

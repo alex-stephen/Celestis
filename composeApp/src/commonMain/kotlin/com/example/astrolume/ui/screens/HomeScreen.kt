@@ -96,7 +96,7 @@ fun HomeScreen(
     // Collect the toggle for Today vs Random
     val isShowingRandom by viewModel.isShowingRandom.collectAsStateWithLifecycle()
 
-    val isFetchingRandom by viewModel.isFetchingRandom.collectAsStateWithLifecycle()
+    val isFetchingRandom by viewModel.isRefilling.collectAsStateWithLifecycle()
 
     Surface(
         modifier = Modifier.fillMaxSize(),

@@ -102,7 +102,8 @@ class DiscoverViewModel(
             _errorMessage.value = null
             try {
                 // Fetch random APODs to fill the discovery feed
-                val randomFeed = repository.fetchRandom(20)
+                //TODO: get the current month
+                val randomFeed = repository.fetchRange("2026-02-11", "2026-03-11")
                 _rangeApod.value = randomFeed
             } catch (e: Exception) {
                 // Only show error if we have NO local results to show
@@ -135,6 +136,22 @@ class DiscoverViewModel(
                 }
             } finally {
                 _isSearching.value = false
+            }
+        }
+    }
+
+    fun toggleFavorite(apod: ApodResponse) {
+        viewModelScope.launch {
+            try {
+                // We flip the current status
+                val newFavoriteStatus = !apod.isFavorite
+
+                // Update the repository/database
+                // Assuming your repository has a method like updateFavorite
+                repository.toggleFavorite(apod.date, newFavoriteStatus, apod)
+
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to update favorite."
             }
         }
     }

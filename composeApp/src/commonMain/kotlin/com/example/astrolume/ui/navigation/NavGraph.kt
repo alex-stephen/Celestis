@@ -40,7 +40,9 @@ fun NavGraph(
 
         composable<Screen.Discover> {
             val viewModel: DiscoverViewModel = koinViewModel()
-            DiscoverScreen(viewModel)
+            DiscoverScreen(
+                viewModel,
+                windowSizeClass = windowSizeClass,)
         }
 
         composable<Screen.Favorites> {
