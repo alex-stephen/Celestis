@@ -9,6 +9,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -40,6 +41,7 @@ class DiscoverViewModel(
     private var isLastPage = false
 
     private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val searchFlow = _searchQuery
@@ -143,13 +145,17 @@ class DiscoverViewModel(
     fun toggleFavorite(apod: ApodResponse) {
         viewModelScope.launch {
             try {
-                // We flip the current status
                 val newFavoriteStatus = !apod.isFavorite
-
-                // Update the repository/database
-                // Assuming your repository has a method like updateFavorite
                 repository.toggleFavorite(apod.date, newFavoriteStatus, apod)
 
+                // Update the static preset list manually so the UI reacts immediately
+                _rangeApod.value = _rangeApod.value.map { currentApod ->
+                    if (currentApod.date == apod.date) {
+                        currentApod.copy(isFavorite = newFavoriteStatus)
+                    } else {
+                        currentApod
+                    }
+                }
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to update favorite."
             }

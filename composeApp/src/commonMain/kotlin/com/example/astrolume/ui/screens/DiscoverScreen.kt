@@ -1,5 +1,6 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,14 +24,16 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
@@ -41,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -50,34 +54,55 @@ import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel,
     windowSizeClass: WindowSizeClass
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        SearchBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            inputField = {
+                SearchBarDefaults.InputField(
+                    query = query,
+                    onQueryChange = viewModel::updateQuery,
+                    onSearch = { viewModel::executeSearch.invoke() },
+                    expanded = false, // Keep false so we can see the grid below
+                    onExpandedChange = { },
+                    placeholder = { Text("Search APODs...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.updateQuery("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                            }
+                        }
+                    }
+                )
+            },
+            expanded = false,
+            onExpandedChange = { },
+        ) {
+            // Leave empty since we are using the grid below instead
+        }
         when (val state = uiState) {
             is DiscoverUiState.Loading -> {
-                DiscoverScreenLoading()
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
-
-            is DiscoverUiState.Error -> {
-                DiscoverScreenError(state)
-            }
-
+            is DiscoverUiState.Error -> DiscoverScreenError(state)
             is DiscoverUiState.Success -> {
-                DiscoverScreenSuccess(
-                    state = state,
+                DiscoverScreenGrid(state = state,
                     windowSizeClass = windowSizeClass,
-                    onQueryChange = viewModel::updateQuery,
                     onLoadMore = viewModel::loadNextSearchPage,
-                    onSearch = viewModel::executeSearch,
-                    onFavoriteClick = { apod -> viewModel.toggleFavorite(apod) }
+                    onFavoriteClick = viewModel::toggleFavorite
                 )
             }
         }
@@ -91,12 +116,10 @@ fun DiscoverScreenLoading() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DiscoverScreenSuccess(
+fun DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
-    onQueryChange: (String) -> Unit,
     onLoadMore: () -> Unit,
-    onSearch: () -> Unit,
     onFavoriteClick: (ApodResponse) -> Unit
 ) {
     var active by remember { mutableStateOf(false) }
@@ -112,33 +135,6 @@ fun DiscoverScreenSuccess(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SearchBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = state.searchQuery,
-                    onQueryChange = onQueryChange,
-                    onSearch = { onSearch() },
-                    expanded = false, // Keep false so we can see the grid below
-                    onExpandedChange = { },
-                    placeholder = { Text("Search APODs...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (state.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
-                            }
-                        }
-                    }
-                )
-            },
-            expanded = false,
-            onExpandedChange = { },
-        ) {
-            // Leave empty since we are using the grid below instead
-        }
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridCols),
             modifier = Modifier.fillMaxSize(),
@@ -146,7 +142,8 @@ fun DiscoverScreenSuccess(
         ) {
             itemsIndexed(
                 items = displayList,
-                key = { _, apod -> apod.date }
+                key = { _, apod -> apod.date },
+                contentType = { _, _ -> "ApodCard" }
             ) { index, apod ->
                 // Pagination Trigger: When the user is 4 items from the end
                 if (index >= displayList.size - 4 && state.searchQuery.isNotEmpty()) {
@@ -172,6 +169,28 @@ fun DiscoverScreenSuccess(
                                 .fillMaxWidth()
                                 .aspectRatio(1f)
                         )
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.8f) // Fade to dark at the bottom
+                                        )
+                                    )
+                                )
+                                .padding(horizontal = 8.dp, vertical = 12.dp)
+                        ) {
+                            Text(
+                                text = apod.date, // Format this string nicely if needed
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.align(Alignment.BottomStart)
+                            )
+                        }
 
                         // The Favorite Button
                         IconButton(
@@ -203,6 +222,45 @@ fun DiscoverScreenSuccess(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ApodDateRangePicker(onRangeSelected: (Long?, Long?) -> Unit) {
+    // 31 days in milliseconds
+    val maxRangeMillis = 31L * 24 * 60 * 60 * 1000
+
+    val dateRangePickerState = rememberDateRangePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return true // Allow starting on any date (or restrict to past dates here)
+            }
+
+            override fun isSelectableYear(year: Int): Boolean {
+                return year <= 2026 // APOD started in 1995, max is current year
+            }
+        }
+    )
+
+    // Enforce the 31-day limit reactively
+    LaunchedEffect(dateRangePickerState.selectedEndDateMillis) {
+        val start = dateRangePickerState.selectedStartDateMillis
+        val end = dateRangePickerState.selectedEndDateMillis
+
+        if (start != null && end != null) {
+            if (end - start > maxRangeMillis) {
+                // If they select a range larger than 31 days, reset the end date
+                dateRangePickerState.setSelection(start, null)
+            } else {
+                onRangeSelected(start, end)
+            }
+        }
+    }
+
+    DateRangePicker(
+        state = dateRangePickerState,
+        modifier = Modifier.fillMaxWidth().height(400.dp)
+    )
 }
 @Composable
 fun DiscoverScreenError(state: DiscoverUiState.Error) {
