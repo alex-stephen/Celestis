@@ -4,30 +4,36 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 sealed interface DiscoverUiState {
     object Loading : DiscoverUiState
     data class Success(
         val rangeApod: List<ApodResponse>,
-        val searchResults: List<ApodResponse>,
         val searchQuery: String,
-        val isPaging: Boolean = false
+        val searchResults: PaginatedSearchState,
+        val isRefreshing: Boolean = false
     ) : DiscoverUiState
     data class Error(val message: String) : DiscoverUiState
 }
+
+/**
+ * Cross-platform pagination state for search results
+ */
+data class PaginatedSearchState(
+    val items: List<ApodResponse> = emptyList(),
+    val page: Int = 0,
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMore: Boolean = true,
+    val error: String? = null
+)
 
 @OptIn(FlowPreview::class)
 class DiscoverViewModel(
@@ -35,67 +41,58 @@ class DiscoverViewModel(
 ) : ViewModel() {
     private val _rangeApod = MutableStateFlow<List<ApodResponse>>(emptyList())
     private val _isRefreshing = MutableStateFlow(false)
-    private val _isSearching = MutableStateFlow(false)
     private val _errorMessage = MutableStateFlow<String?>(null)
-    private var currentSearchPage = 0
-    private var isLastPage = false
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val searchFlow = _searchQuery
-        .debounce(300L)
-        .distinctUntilChanged()
-        .flatMapLatest { query ->
-            if (query.isBlank()) {
-                flowOf(emptyList())
-            } else {
-                repository.observeSearch(query)
-            }
+    private val _searchState = MutableStateFlow(PaginatedSearchState())
+    private val searchState: StateFlow<PaginatedSearchState> = _searchState.asStateFlow()
+
+    val uiState: StateFlow<DiscoverUiState> = MutableStateFlow<DiscoverUiState>(DiscoverUiState.Loading).apply {
+        viewModelScope.launch {
+            // Combine all state flows
+            kotlinx.coroutines.flow.combine(
+                _rangeApod,
+                _searchQuery,
+                _isRefreshing,
+                _errorMessage,
+                searchState
+            ) { range, query, refreshing, error, search ->
+                if (error != null) {
+                    DiscoverUiState.Error(error)
+                } else if (refreshing && range.isEmpty()) {
+                    DiscoverUiState.Loading
+                } else {
+                    DiscoverUiState.Success(
+                        rangeApod = range,
+                        searchQuery = query,
+                        searchResults = search,
+                        isRefreshing = refreshing
+                    )
+                }
+            }.collect { value = it }
         }
-
-    private val dataFlow = combine(_rangeApod, searchFlow, _searchQuery) { range, search, query ->
-        Triple(range, search, query)
     }
-
-    private val flagsFlow = combine(_isRefreshing, _isSearching, _errorMessage) { r, s, e ->
-        Triple(r, s, e)
-    }
-
-    val uiState: StateFlow<DiscoverUiState> = combine(
-        dataFlow,
-        flagsFlow
-    ) { data, flags ->
-        val range = data.first
-        val search = data.second
-        val query = data.third
-        
-        val refreshing = flags.first
-        val searching = flags.second
-        val error = flags.third
-
-        if (error != null) {
-            DiscoverUiState.Error(error)
-        } else if ((refreshing || searching) && range.isEmpty() && search.isEmpty()) {
-            DiscoverUiState.Loading
-        } else {
-            DiscoverUiState.Success(
-                rangeApod = range,
-                searchResults = search,
-                searchQuery = query,
-                isPaging = searching
-            )
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = DiscoverUiState.Loading
-    )
 
     init {
         // Initial Fetch for the Discovery Feed
         showRange()
+        
+        // Debounce search query changes
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(500L)
+                .distinctUntilChanged()
+                .collect { query ->
+                    if (query.isNotBlank()) {
+                        performSearch(query, reset = true)
+                    } else {
+                        // Clear search results when query is empty
+                        _searchState.value = PaginatedSearchState()
+                    }
+                }
+        }
     }
 
     fun showRange() {
@@ -118,30 +115,6 @@ class DiscoverViewModel(
         }
     }
 
-    private fun syncSearch(query: String) {
-        if (isLastPage) return
-        viewModelScope.launch {
-            _isSearching.value = true
-            _errorMessage.value = null
-            try {
-                // Network call to update the local DB
-                val newResults = repository.search(query, currentSearchPage)
-                if (newResults.isEmpty()) {
-                    isLastPage = true
-                }
-            } catch (e: Exception) {
-                // If we have local results, we might want to stay silent
-                // If 0 results, show the error
-                if (uiState.value is DiscoverUiState.Success &&
-                    (uiState.value as DiscoverUiState.Success).searchResults.isEmpty()) {
-                    _errorMessage.value = "Search unavailable. Check connection."
-                }
-            } finally {
-                _isSearching.value = false
-            }
-        }
-    }
-
     fun toggleFavorite(apod: ApodResponse) {
         viewModelScope.launch {
             try {
@@ -156,6 +129,17 @@ class DiscoverViewModel(
                         currentApod
                     }
                 }
+                
+                // Also update search results if present
+                _searchState.value = _searchState.value.copy(
+                    items = _searchState.value.items.map { currentApod ->
+                        if (currentApod.date == apod.date) {
+                            currentApod.copy(isFavorite = newFavoriteStatus)
+                        } else {
+                            currentApod
+                        }
+                    }
+                )
             } catch (e: Exception) {
                 _errorMessage.value = "Failed to update favorite."
             }
@@ -163,23 +147,64 @@ class DiscoverViewModel(
     }
 
     fun updateQuery(newQuery: String) {
-        if (_searchQuery.value != newQuery) {
-            _searchQuery.value = newQuery
-        }
+        _searchQuery.value = newQuery
     }
 
     fun executeSearch() {
-        val trimmed = _searchQuery.value.trim()
-        if (trimmed.isNotBlank()) {
-            currentSearchPage = 0
-            isLastPage = false
-            syncSearch(trimmed)
+        val query = _searchQuery.value.trim()
+        if (query.isNotBlank()) {
+            performSearch(query, reset = true)
         }
     }
 
-    fun loadNextSearchPage() {
-        if (_isSearching.value || _searchQuery.value.isBlank() || isLastPage) return
-        currentSearchPage++
-        syncSearch(_searchQuery.value.trim())
+    fun loadMoreSearchResults() {
+        val currentState = _searchState.value
+        if (currentState.isLoadingMore || !currentState.hasMore) return
+        
+        val query = _searchQuery.value.trim()
+        if (query.isBlank()) return
+        
+        performSearch(query, reset = false)
+    }
+
+    private fun performSearch(query: String, reset: Boolean) {
+        viewModelScope.launch {
+            val currentState = _searchState.value
+            
+            if (reset) {
+                _searchState.value = currentState.copy(
+                    isLoading = true,
+                    error = null,
+                    page = 0,
+                    items = emptyList(),
+                    hasMore = true
+                )
+            } else {
+                _searchState.value = currentState.copy(isLoadingMore = true, error = null)
+            }
+
+            try {
+                val pageToLoad = if (reset) 0 else currentState.page
+                val results = repository.searchWithPagination(query, pageToLoad)
+                
+                val newItems = if (reset) results else currentState.items + results
+                val hasMore = results.size >= 20 // If we got a full page, there might be more
+                
+                _searchState.value = PaginatedSearchState(
+                    items = newItems,
+                    page = pageToLoad + 1,
+                    isLoading = false,
+                    isLoadingMore = false,
+                    hasMore = hasMore,
+                    error = null
+                )
+            } catch (e: Exception) {
+                _searchState.value = currentState.copy(
+                    isLoading = false,
+                    isLoadingMore = false,
+                    error = e.message ?: "Search failed"
+                )
+            }
+        }
     }
 }
