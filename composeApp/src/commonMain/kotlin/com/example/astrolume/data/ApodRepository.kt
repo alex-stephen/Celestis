@@ -1,7 +1,6 @@
 package com.example.astrolume.data
 
 import app.cash.sqldelight.coroutines.asFlow
-import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import coil3.ImageLoader
 import coil3.request.ImageRequest
@@ -95,31 +94,42 @@ class ApodRepository(
     }
 
     /**
-     * Observes search results directly from the local database.
-     * This ensures the UI updates automatically when new network data is inserted.
+     * Simple cross-platform search with pagination.
+     * Searches both local database and remote API.
      */
-    fun observeSearch(query: String): Flow<List<ApodResponse>> {
-        // We use a LIKE operator in SQLDelight to filter the local cache
-        return queries.searchLocalApods("%$query%")
-            .asFlow()
-            .mapToList(Dispatchers.IO)
-            .map { entities -> entities.map { it.toResponse() } }
-    }
-    /**
-     * Executes the Atlas Search.
-     * Note: We don't save these to Local DB immediately because
-     * search results are "Thin" (missing explanations).
-     */
-    suspend fun search(query: String, page: Int = 0): List<ApodResponse> = withContext(Dispatchers.IO) {
-        val remotes = api.searchAllFields(query, page = page) // Update NasaApi to accept 'page'
-
-        database.transaction {
-            remotes.forEach { apod ->
-                // Use your existing innerSaveToLocal which handles UPSERTs
-                innerSaveToLocal(apod)
-            }
+    suspend fun searchWithPagination(query: String, page: Int): List<ApodResponse> = withContext(Dispatchers.IO) {
+        val pageSize = 20L
+        val offset = page * pageSize
+        
+        // First, try to get results from local cache
+        val searchPattern = "%$query%"
+        val localResults = queries.searchLocalApods(
+            query = searchPattern,
+            limit = pageSize,
+            offset = offset
+        ).executeAsList()
+        
+        // If we have enough local results, return them
+        if (localResults.size >= pageSize || page > 0) {
+            return@withContext localResults.map { it.toResponse() }
         }
-        remotes
+        
+        // Otherwise, fetch from remote
+        try {
+            val remoteResults = api.searchAllFields(query, page)
+            
+            // Save to database for future searches
+            database.transaction {
+                remoteResults.forEach { apod ->
+                    innerSaveToLocal(apod)
+                }
+            }
+            
+            return@withContext remoteResults
+        } catch (e: Exception) {
+            // If remote fails, return whatever local results we have
+            return@withContext localResults.map { it.toResponse() }
+        }
     }
     private fun precacheImage(url: String?) {
         url ?: return
@@ -130,7 +140,7 @@ class ApodRepository(
         imageLoader.enqueue(request)
     }
 
-    private fun innerSaveToLocal(remote: ApodResponse, forceFavorite: Boolean? = null) {
+    fun innerSaveToLocal(remote: ApodResponse, forceFavorite: Boolean? = null) {
         val existing = queries.getApodByDate(remote.date).executeAsOneOrNull()
         val finalExplanation = remote.explanation ?: existing?.explanation
         val isFav = forceFavorite ?: existing?.isFavorite ?: remote.isFavorite

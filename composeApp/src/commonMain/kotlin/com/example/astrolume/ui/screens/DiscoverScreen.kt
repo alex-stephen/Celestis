@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -38,10 +38,9 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -72,7 +71,7 @@ fun DiscoverScreen(
                 SearchBarDefaults.InputField(
                     query = query,
                     onQueryChange = viewModel::updateQuery,
-                    onSearch = { viewModel::executeSearch.invoke() },
+                    onSearch = { viewModel.executeSearch() },
                     expanded = false, // Keep false so we can see the grid below
                     onExpandedChange = { },
                     placeholder = { Text("Search APODs...") },
@@ -99,10 +98,10 @@ fun DiscoverScreen(
             }
             is DiscoverUiState.Error -> DiscoverScreenError(state)
             is DiscoverUiState.Success -> {
-                DiscoverScreenGrid(state = state,
+                DiscoverScreenGrid(
+                    state = state,
                     windowSizeClass = windowSizeClass,
-                    onLoadMore = viewModel::loadNextSearchPage,
-                    onFavoriteClick = viewModel::toggleFavorite
+                    viewModel = viewModel,
                 )
             }
         }
@@ -119,105 +118,162 @@ fun DiscoverScreenLoading() {
 fun DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
-    onLoadMore: () -> Unit,
-    onFavoriteClick: (ApodResponse) -> Unit
+    viewModel: DiscoverViewModel,
 ) {
-    var active by remember { mutableStateOf(false) }
-
     // Determine which list to display
-    val displayList = if (state.searchQuery.isEmpty()) state.rangeApod else state.searchResults
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-
-    var gridCols by remember { mutableStateOf(2)}
-
-    if (isLandscape) {
-        gridCols = 3
-    }
+    val gridCols = if (isLandscape) 3 else 2
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(gridCols),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp)
-        ) {
-            itemsIndexed(
-                items = displayList,
-                key = { _, apod -> apod.date },
-                contentType = { _, _ -> "ApodCard" }
-            ) { index, apod ->
-                // Pagination Trigger: When the user is 4 items from the end
-                if (index >= displayList.size - 4 && state.searchQuery.isNotEmpty()) {
-                    LaunchedEffect(Unit) { onLoadMore() }
+        if (state.searchQuery.isEmpty()) {
+            // MODE A: Discovery Feed (Standard List)
+            LazyVerticalGrid(columns = GridCells.Fixed(2)) {
+                items(state.rangeApod, key = { it.date }) { apod ->
+                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) })
                 }
-                Card(
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .border(1.dp, Color.White, MaterialTheme.shapes.medium ),
-                    elevation = CardDefaults.cardElevation(4.dp)
-                ) {
-                    val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-                        apod.thumbnailUrl ?: apod.url
-                    } else {
-                        apod.url
-                    }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AsyncImage(
-                            model = imageUrl,
-                            contentDescription = apod.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                        )
-
+            }
+        } else {
+            // MODE B: Search Results with Pagination
+            val searchState = state.searchResults
+            
+            LazyVerticalGrid(columns = GridCells.Fixed(gridCols)) {
+                // Show initial loading
+                if (searchState.isLoading && searchState.items.isEmpty()) {
+                    item(span = { GridItemSpan(gridCols) }) {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color.Black.copy(alpha = 0.8f) // Fade to dark at the bottom
-                                        )
-                                    )
-                                )
-                                .padding(horizontal = 8.dp, vertical = 12.dp)
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = apod.date, // Format this string nicely if needed
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.align(Alignment.BottomStart)
-                            )
+                            CircularProgressIndicator()
                         }
+                    }
+                }
+                
+                // Show search results
+                itemsIndexed(
+                    items = searchState.items,
+                    key = { _, apod -> apod.date }
+                ) { index, apod ->
+                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) })
+                    
+                    // Trigger load more when near end
+                    val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
+                        derivedStateOf {
+                            index >= searchState.items.size - 5 && 
+                            searchState.hasMore && 
+                            !searchState.isLoadingMore
+                        }
+                    }
+                    
+                    if (shouldLoadMore) {
+                        LaunchedEffect(Unit) {
+                            viewModel.loadMoreSearchResults()
+                        }
+                    }
+                }
 
-                        // The Favorite Button
-                        IconButton(
-                            onClick = { onFavoriteClick(apod) },
+                // Show loading more indicator at bottom
+                if (searchState.isLoadingMore) {
+                    item(span = { GridItemSpan(gridCols) }) {
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (apod.isFavorite) Color.Red else Color.White,
-                            )
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
+                
+                // Show error if present
+                if (searchState.error != null) {
+                    item(span = { GridItemSpan(gridCols) }) {
+                        Text(
+                            text = "Error: ${searchState.error}",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+                
+                // Show "no results" message
+                if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
+                    item(span = { GridItemSpan(gridCols) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No results found for \"${state.searchQuery}\"")
                         }
                     }
                 }
             }
+        }
+    }
+}
 
-            // Show a small loader at the bottom during paging
-            if (!state.searchQuery.isNullOrEmpty() && displayList.isNotEmpty() && state.isPaging) {
-                item(span = { GridItemSpan(2) }) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+@Composable
+fun ApodCard(
+    apod: ApodResponse,
+    onFavoriteClick: (ApodResponse) -> Unit) {
+    Card(
+        modifier = Modifier
+            .padding(4.dp)
+            .border(1.dp, Color.White, MaterialTheme.shapes.medium ),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
+            apod.thumbnailUrl ?: apod.url
+        } else {
+            apod.url
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = apod.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            )
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.8f) // Fade to dark at the bottom
+                            )
+                        )
+                    )
+                    .padding(horizontal = 8.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = apod.date, // Format this string nicely if needed
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                )
+
+                // The Favorite Button
+                IconButton(
+                    onClick = { onFavoriteClick(apod) },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                ) {
+                    Icon(
+                        imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = if (apod.isFavorite) Color.Red else Color.White,
+                    )
                 }
             }
         }
@@ -262,6 +318,7 @@ fun ApodDateRangePicker(onRangeSelected: (Long?, Long?) -> Unit) {
         modifier = Modifier.fillMaxWidth().height(400.dp)
     )
 }
+
 @Composable
 fun DiscoverScreenError(state: DiscoverUiState.Error) {
     Column(
