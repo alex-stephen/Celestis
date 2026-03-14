@@ -2,38 +2,34 @@ package com.example.astrolume.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -45,11 +41,13 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -64,10 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,7 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
-import com.example.astrolume.ui.utils.CommonBackHandler
+import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
@@ -91,38 +86,29 @@ fun HomeScreen(
     onOpenDrawer: () -> Unit,
     hazeState: HazeState
 ) {
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    // Collect the toggle for Today vs Random
     val isShowingRandom by viewModel.isShowingRandom.collectAsStateWithLifecycle()
-
     val isFetchingRandom by viewModel.isRefilling.collectAsStateWithLifecycle()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        when (val state = uiState) {
-            is HomeUiState.Loading -> {
-                HomeScreenLoading()
-            }
-
-            is HomeUiState.Error -> {
-                HomeScreenError(state, onRefresh = viewModel::showNextRandom)
-            }
-
-            is HomeUiState.Success -> {
-                HomeScreenSuccess(
-                    state = state,
-                    windowSizeClass = windowSizeClass,
-                    isShowingRandom = isShowingRandom,
-                    isFetchingRandom = isFetchingRandom,
-                    onRefresh = viewModel::showNextRandom, // Trigger prefetch & swap
-                    onBackToToday = viewModel::showToday,
-                    onFavoriteToggle = viewModel::toggleFavorite,
-                    onOpenDrawer = onOpenDrawer,
-                    hazeState = hazeState,
-                )
+    // No Scaffold TopBar slot = No unwanted gaps
+    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { _ ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val state = uiState) {
+                is HomeUiState.Success -> {
+                    HomeScreenSuccess(
+                        state = state,
+                        windowSizeClass = windowSizeClass,
+                        isShowingRandom = isShowingRandom,
+                        isFetchingRandom = isFetchingRandom,
+                        onRefresh = viewModel::showNextRandom,
+                        onBackToToday = viewModel::showToday,
+                        onFavoriteToggle = viewModel::toggleFavorite,
+                        onOpenDrawer = onOpenDrawer,
+                        hazeState = hazeState,
+                    )
+                }
+                is HomeUiState.Loading -> HomeScreenLoading()
+                is HomeUiState.Error -> HomeScreenError(state, onRefresh = viewModel::showNextRandom)
             }
         }
     }
@@ -140,302 +126,144 @@ fun HomeScreenSuccess(
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
 ) {
-    CommonBackHandler(enabled = isShowingRandom) { onBackToToday() }
-
-    val displayApod = if (isShowingRandom) {
-        state.randomApod ?: state.todayApod
-    } else {
-        state.todayApod
-    }
-
+    val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     var isExpanded by remember { mutableStateOf(false) }
-    var isVisible by remember { mutableStateOf(true) }
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    val cardWidth by animateDpAsState(
-        targetValue = when {
-            !isLandscape -> 1000.dp // Will be constrained by fillMaxWidth()
-            isExpanded -> 500.dp    // Expanded Landscape Width
-            else -> 320.dp          // Collapsed Landscape Width
-        }, label = "Width"
-    )
+    Box(modifier = Modifier.fillMaxSize()) {
 
-    val cardHeight by animateDpAsState(
-        targetValue = when {
-            isExpanded -> 320.dp    // Capped height: Scrollable text handles the rest
-            else -> 180.dp          // Snug collapsed height
-        }, label = "Height"
-    )
+        // (Restored Blurred Edges)
+        Box(modifier = Modifier.fillMaxSize().haze(state = hazeState)) {
+            // Background Layer: Blurred & Cropped to fill sides
+            AsyncImage(
+                model = displayApod.url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(40.dp).alpha(0.4f)
+            )
+            // Foreground Layer: Fitted subject
+            AsyncImage(
+                model = displayApod.url,
+                contentDescription = null,
+                contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
-    if (isLandscape) {
-        // --- LANDSCAPE LAYOUT ---
-        Box(modifier = Modifier.fillMaxSize()) {
-
-            // Full-screen immersive media
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        isVisible = !isVisible
-                        if (!isVisible) isExpanded = false // Auto-collapse when hiding
+        // TOP UI LAYER
+        Column(modifier = Modifier.fillMaxWidth()) {
+            ApodTopAppBar(
+                title = "CELESTIS",
+                hazeState = hazeState,
+                navigationIcon = {
+                    // Only show Menu in TopBar if Landscape
+                    if (isLandscape) {
+                        IconButton(onClick = onOpenDrawer) {
+                            Icon(Icons.Default.Menu, "Menu", tint = Color.White)
+                        }
+                    } else if (isShowingRandom && isLandscape) {
+                        IconButton(onClick = onBackToToday) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                        }
                     }
-            ) {
-                MediaDisplayLayer(url = displayApod.url, hazeState = hazeState)
-            }
+                },
+                actions = {
+                    IconButton(onClick = {}) {
+                        Icon(Icons.Default.Share, null, tint = Color.White)
+                    }
+                }
+            )
 
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = fadeIn() + slideInHorizontally { -20 },
-                exit = fadeOut() + slideOutHorizontally { -20 }
+            // Secondary Actions Row
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .animateContentSize(animationSpec = tween(300))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .fillMaxWidth()
-                        .padding(24.dp)
-                        .graphicsLayer {
-                            // Fade in/out with the isVisible toggle
-                            alpha = if (isVisible) 1f else 0f
-                            translationY = if (isVisible) 0f else -50f
-                        },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    GlassIconButton(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Menu",
-                        onClick = onOpenDrawer,
-                        hazeState = hazeState,
-                        enabled = isVisible
-                    )
-                    Row {
+                if (isLandscape) {
+                    Column {
+                        RandomApodActionButton(onRefresh, hazeState, isFetchingRandom)
+                        Spacer(modifier = Modifier.height(12.dp))
                         AnimatedVisibility(
                             visible = isShowingRandom,
-                            enter = slideInHorizontally() + fadeIn(),
-                            exit = slideOutHorizontally() + fadeOut()
+                            enter = fadeIn(animationSpec = tween(300)) +
+                                    slideInHorizontally(
+                                        initialOffsetX = { -it }, // Start 'it' pixels to the left (off-screen)
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    ),
+                            exit = fadeOut(tween(300)) +
+                                    slideOutHorizontally(tween(300)) { -it } +
+                                    shrinkHorizontally(tween(300), shrinkTowards = Alignment.Start)
                         ) {
                             GlassIconButton(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 onClick = onBackToToday,
-                                modifier = Modifier.padding(end = 8.dp),
-                                hazeState = hazeState,
-                                enabled = isVisible
+                                hazeState = hazeState
                             )
                         }
-
-                        if (!isShowingRandom) Spacer(Modifier.weight(1f))
-
-                        RandomApodActionButton(
-                            onClick = onRefresh,
-                            hazeState = hazeState,
-                            isLoading = isFetchingRandom,
-                            enabled = isVisible,
-                        )
                     }
-                }
-            }
-
-            displayApod.copyright?.let {
-                Text(
-                    text = "© $it",
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(24.dp)
-                        .graphicsLayer { alpha = if (isVisible) 0.7f else 0f },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd) // Anchored to bottom right like portrait
-                    .padding(end = 24.dp, bottom = 24.dp, top = 80.dp)
-                    .graphicsLayer {
-                        alpha = if (isVisible) 1f else 0f
-                        transformOrigin = TransformOrigin(1f, 1f) // Scale from the bottom right corner
-                        scaleX = if (isVisible) 1f else 0.8f
-                        scaleY = if (isVisible) 1f else 0.8f
-                    }
-                    .animateContentSize(
-                        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
-                        alignment = Alignment.BottomEnd
-                    )
-                    .then(
-                        if (isExpanded) {
-                            Modifier
-                                .width(if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded) 500.dp else 420.dp)
-                                .fillMaxHeight(0.85f)
-                        } else {
-                            Modifier
-                                .width(340.dp)
-                                .height(160.dp)
+                    // Push everything else to the right
+                    Spacer(modifier = Modifier.weight(1f))
+                } else {
+                    AnimatedVisibility(
+                        visible = isShowingRandom,
+                        enter = fadeIn(animationSpec = tween(300)) +
+                                slideInHorizontally(
+                                    initialOffsetX = { -it }, // Start 'it' pixels to the left (off-screen)
+                                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                ),
+                        exit = fadeOut(tween(300)) +
+                                slideOutHorizontally(tween(300)) { -it } +
+                                shrinkHorizontally(tween(300), shrinkTowards = Alignment.Start)
+                    ) {
+                        if (isShowingRandom) {
+                            GlassIconButton(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                onClick = onBackToToday,
+                                hazeState = hazeState
+                            )
                         }
-                    )
-                    .clip(RoundedCornerShape(32.dp))
-                    .hazeChild(
-                        state = hazeState,
-                        style = HazeStyle(
-                            backgroundColor = Color(0xFF111111),
-                            blurRadius = 40.dp,
-                            noiseFactor = 0.15f,
-                            tint = null
-                        )
-                    )
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            listOf(Color.White.copy(0.25f), Color.Transparent)
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .clickable { isExpanded = !isExpanded }
-            ) {
-                CardContent(
-                    displayApod = displayApod,
-                    title = displayApod.title ?: "Unknown",
-                    explanation = displayApod.explanation ?: "",
-                    isExpanded = isExpanded,
-                    isFavorite = displayApod.isFavorite,
-                    isVisible = isVisible,
-                    onFavoriteClick = { onFavoriteToggle(displayApod.date, !displayApod.isFavorite) },
-                    hazeState = hazeState
-                )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    RandomApodActionButton(onRefresh, hazeState, isFetchingRandom)
+                }
             }
         }
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .haze(state = hazeState) // Apply .haze() ONLY to this layer
-            ) {
-                Crossfade(
-                    targetState =
-                        if (displayApod.mediaType.equals("video", ignoreCase = true)) {
-                            displayApod.thumbnailUrl ?: displayApod.url
-                        } else {
-                            displayApod.url
-                        }, animationSpec = tween(700)
-                ) { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable { isVisible = !isVisible }
-                    )
-                }
-            }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .graphicsLayer { alpha = if (isVisible) 1f else 0f }
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent)
-                        )
-                    )
-            )
-
-            // Top Navigation
-            Row(
-                modifier = Modifier
-                    .statusBarsPadding()
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .graphicsLayer { alpha = if (isVisible) 1f else 0f },
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AnimatedVisibility(
-                    visible = isShowingRandom,
-                    enter = slideInHorizontally() + fadeIn(),
-                    exit = slideOutHorizontally() + fadeOut()
-                ) {
-                    GlassIconButton(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        onClick = onBackToToday,
-                        hazeState = hazeState,
-                        enabled = isVisible
-                    )
-                }
-
-                if (!isShowingRandom) Spacer(Modifier.weight(1f))
-
-                RandomApodActionButton(
-                    onClick = onRefresh,
-                    hazeState = hazeState, // haze
-                    isLoading = isFetchingRandom,
-                    enabled = isVisible,
-
-                )
-            }
-
-            // Copyright Info (centered at bottom of image area)
-            displayApod.copyright?.let {
-                Text(
-                    text = "© $it",
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 8.dp)
-                        .graphicsLayer { alpha = if (isVisible) 0.7f else 0f },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White
-                )
-            }
-
-            // The Glass Card
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-                    .graphicsLayer {
-                        alpha = if (isVisible) 1f else 0f
-                        transformOrigin = TransformOrigin(1f, 1f) // Anchor point: Bottom-Right
-                        scaleX = if (isVisible) 1f else 0.8f
-                        scaleY = if (isVisible) 1f else 0.8f
+        // GLASS CARD (Landscape Width Expansion)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .animateContentSize()
+                .then(
+                    if (isLandscape) {
+                        Modifier.width(if (isExpanded) 500.dp else 320.dp).height(250.dp)
+                    } else {
+                        Modifier.fillMaxWidth().height(if (isExpanded) 400.dp else 160.dp)
                     }
-                    .then(if (isLandscape) Modifier.width(cardWidth) else Modifier.fillMaxWidth())
-                    .height(cardHeight)
-                    .clip(RoundedCornerShape(28.dp))
-                    .hazeChild(
-                        state = hazeState,
-                        style = HazeStyle(
-                            backgroundColor = Color(0xFF111111), // Darker for better contrast
-                            blurRadius = 30.dp,
-                            noiseFactor = 0.15f,
-                            tint = null
-                        )
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(28.dp))
-                    .clickable(enabled = isVisible) { isExpanded = !isExpanded }
-                    .animateContentSize()
-            ) {
-                CardContent(
-                    displayApod = displayApod,
-                    title = displayApod.title ?: "Unknown",
-                    explanation = displayApod.explanation ?: "",
-                    isExpanded = isExpanded,
-                    isFavorite = displayApod.isFavorite,
-                    isVisible = isVisible,
-                    onFavoriteClick = {
-                        onFavoriteToggle(
-                            displayApod.date,
-                            !displayApod.isFavorite
-                        )
-                    },
-                    hazeState = hazeState
                 )
-            }
+                .clip(RoundedCornerShape(28.dp))
+                .hazeChild(state = hazeState, style = HazeStyle(backgroundColor = Color(0xFF111111), blurRadius = 30.dp, tint = null))
+                .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(28.dp))
+                .clickable { isExpanded = !isExpanded }
+        ) {
+            CardContent(
+                displayApod = displayApod,
+                title = displayApod.title ?: "Unknown",
+                explanation = displayApod.explanation ?: "",
+                isExpanded = isExpanded,
+                isFavorite = displayApod.isFavorite,
+                isVisible = true,
+                onFavoriteClick = { onFavoriteToggle(displayApod.date, !displayApod.isFavorite) },
+                hazeState = hazeState
+            )
         }
     }
 }
@@ -455,7 +283,7 @@ fun CardContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 4.dp), // Space between the pill and the title
-            horizontalArrangement = Arrangement.Start,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
@@ -476,6 +304,15 @@ fun CardContent(
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+            }
+            displayApod.copyright?.let {
+                Text(
+                    text = "© $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
