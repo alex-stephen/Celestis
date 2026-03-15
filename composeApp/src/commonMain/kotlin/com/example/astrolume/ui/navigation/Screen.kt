@@ -7,4 +7,5 @@ sealed interface Screen {
     @Serializable object Home : Screen
     @Serializable object Discover : Screen
     @Serializable object Favorites : Screen
+    @Serializable data class PhotoDetail(val date: String) : Screen
 }

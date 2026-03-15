@@ -66,12 +66,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
@@ -106,6 +108,8 @@ fun HomeScreen(
                         onFavoriteToggle = viewModel::toggleFavorite,
                         onOpenDrawer = onOpenDrawer,
                         hazeState = hazeState,
+                        onShowHdImage = viewModel::showHdImage,
+                        onHideHdImage = viewModel::hideHdImage
                     )
                 }
                 is HomeUiState.Loading -> HomeScreenLoading()
@@ -126,6 +130,8 @@ fun HomeScreenSuccess(
     onFavoriteToggle: (String, Boolean) -> Unit,
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
+    onShowHdImage: (String?) -> Unit = {},
+    onHideHdImage: () -> Unit = {}
 ) {
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     var isExpanded by remember { mutableStateOf(false) }
@@ -133,8 +139,12 @@ fun HomeScreenSuccess(
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // (Restored Blurred Edges)
-        Box(modifier = Modifier.fillMaxSize().haze(state = hazeState)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .haze(state = hazeState)
+                .clickable { onShowHdImage(displayApod.urlHD ?: displayApod.url) }
+        ) {
             // Background Layer: Blurred & Cropped to fill sides
             AsyncImage(
                 model = displayApod.url,
@@ -142,7 +152,7 @@ fun HomeScreenSuccess(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().blur(40.dp).alpha(0.4f)
             )
-            // Foreground Layer: Fitted subject
+            // Foreground Layer: Fitted subject - Clickable to show HD
             AsyncImage(
                 model = displayApod.url,
                 contentDescription = null,
@@ -278,6 +288,14 @@ fun HomeScreenSuccess(
                 hazeState = hazeState
             )
         }
+
+        // HD Image Popup
+        if (state.selectedHdUrl != null) {
+            HdImagePopup(
+                imageUrl = state.selectedHdUrl,
+                onDismiss = onHideHdImage
+            )
+        }
     }
 }
 @Composable
@@ -377,8 +395,10 @@ fun CardContent(
                 Text(
                     text = explanation,
                     style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Justify,
                     color = Color.White.copy(alpha = 0.9f),
-                    lineHeight = 22.sp
+                    lineHeight = 22.sp,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

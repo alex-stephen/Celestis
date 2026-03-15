@@ -6,12 +6,15 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import com.example.astrolume.ui.screens.DiscoverScreen
 import com.example.astrolume.ui.screens.FavoriteScreen
 import com.example.astrolume.ui.screens.HomeScreen
+import com.example.astrolume.ui.screens.PhotoDetailScreen
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import com.example.astrolume.ui.viewModels.FavoriteViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
+import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -46,6 +49,9 @@ fun NavGraph(
                 viewModel,
                 windowSizeClass = windowSizeClass,
                 onOpenDrawer = onOpenDrawer,
+                onPhotoDetailClick = {
+                    navController.navigate(Screen.PhotoDetail(it.date))
+                },
                 hazeState = hazeState)
         }
 
@@ -55,6 +61,22 @@ fun NavGraph(
                 viewModel,
                 windowSizeClass = windowSizeClass,
                 onOpenDrawer = onOpenDrawer,
+                onPhotoDetailClick = {
+                    navController.navigate(Screen.PhotoDetail(it.date))
+                },
+                hazeState = hazeState
+            )
+        }
+
+        composable<Screen.PhotoDetail> { backStackEntry ->
+            val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
+            val viewModel: PhotoDetailViewModel = koinViewModel()
+            PhotoDetailScreen(
+                date = photoDetail.date,
+                viewModel = viewModel,
+                windowSizeClass = windowSizeClass,
+                onNavigateBack = { navController.navigateUp() },
+                onShare = { /* TODO: Implement share */ },
                 hazeState = hazeState
             )
         }

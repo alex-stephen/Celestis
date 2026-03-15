@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,8 @@ class DiscoverViewModel(
 
     private val _searchState = MutableStateFlow(PaginatedSearchState())
     private val searchState: StateFlow<PaginatedSearchState> = _searchState.asStateFlow()
+
+    private var searchJob: Job? = null
 
     val uiState: StateFlow<DiscoverUiState> = MutableStateFlow<DiscoverUiState>(DiscoverUiState.Loading).apply {
         viewModelScope.launch {
@@ -171,7 +174,8 @@ class DiscoverViewModel(
     }
 
     private fun performSearch(query: String, reset: Boolean) {
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             val currentState = _searchState.value
             
             if (reset) {
