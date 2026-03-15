@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -153,7 +154,19 @@ fun HomeScreenSuccess(
         // TOP UI LAYER
         Column(modifier = Modifier.fillMaxWidth()) {
             ApodTopAppBar(
-                title = "CELESTIS",
+                titleContent = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "CELESTIS",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                },
                 hazeState = hazeState,
                 navigationIcon = {
                     // Only show Menu in TopBar if Landscape

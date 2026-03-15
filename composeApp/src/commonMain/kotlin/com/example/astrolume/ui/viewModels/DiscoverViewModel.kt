@@ -160,10 +160,13 @@ class DiscoverViewModel(
     fun loadMoreSearchResults() {
         val currentState = _searchState.value
         if (currentState.isLoadingMore || !currentState.hasMore) return
-        
+
         val query = _searchQuery.value.trim()
         if (query.isBlank()) return
-        
+
+        // This locks out the other 4 rapid-fire scroll triggers.
+        _searchState.value = currentState.copy(isLoadingMore = true, error = null)
+
         performSearch(query, reset = false)
     }
 
@@ -174,22 +177,24 @@ class DiscoverViewModel(
             if (reset) {
                 _searchState.value = currentState.copy(
                     isLoading = true,
+                    isLoadingMore = false,
                     error = null,
                     page = 0,
                     items = emptyList(),
                     hasMore = true
                 )
-            } else {
-                _searchState.value = currentState.copy(isLoadingMore = true, error = null)
             }
 
             try {
                 val pageToLoad = if (reset) 0 else currentState.page
                 val results = repository.searchWithPagination(query, pageToLoad)
-                
-                val newItems = if (reset) results else currentState.items + results
+
+                val newItems = if (reset) {
+                    results
+                } else {
+                    (currentState.items + results).distinctBy { it.date }
+                }
                 val hasMore = results.size >= 20 // If we got a full page, there might be more
-                
                 _searchState.value = PaginatedSearchState(
                     items = newItems,
                     page = pageToLoad + 1,

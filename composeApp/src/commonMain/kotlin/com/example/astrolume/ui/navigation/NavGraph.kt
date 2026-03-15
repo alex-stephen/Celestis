@@ -44,14 +44,18 @@ fun NavGraph(
             val viewModel: DiscoverViewModel = koinViewModel()
             DiscoverScreen(
                 viewModel,
-                windowSizeClass = windowSizeClass,)
+                windowSizeClass = windowSizeClass,
+                onOpenDrawer = onOpenDrawer,
+                hazeState = hazeState)
         }
 
         composable<Screen.Favorites> {
             val viewModel: FavoriteViewModel = koinViewModel()
             FavoriteScreen(
                 viewModel,
-                windowSizeClass = windowSizeClass
+                windowSizeClass = windowSizeClass,
+                onOpenDrawer = onOpenDrawer,
+                hazeState = hazeState
             )
         }
     }
