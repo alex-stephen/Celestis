@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,10 +18,13 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -50,46 +55,83 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
+import dev.chrisbanes.haze.HazeState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel,
-    windowSizeClass: WindowSizeClass
+    windowSizeClass: WindowSizeClass,
+    onOpenDrawer: () -> Unit,
+    hazeState: HazeState,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SearchBar(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = query,
-                    onQueryChange = viewModel::updateQuery,
-                    onSearch = { viewModel.executeSearch() },
-                    expanded = false, // Keep false so we can see the grid below
-                    onExpandedChange = { },
-                    placeholder = { Text("Search APODs...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.updateQuery("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
-                            }
-                        }
+        ApodTopAppBar(
+            titleContent = {
+                Box(
+                    modifier = Modifier.fillMaxHeight(),
+                    contentAlignment = Alignment.Center // This forces vertical centering
+                ) {
+                    SearchBar(
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        inputField = {
+                            SearchBarDefaults.InputField(
+                                query = query,
+                                onQueryChange = viewModel::updateQuery,
+                                onSearch = { viewModel.executeSearch() },
+                                expanded = false, // Keep false so we can see the grid below
+                                onExpandedChange = { },
+                                placeholder = { Text("Search APODs...") },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = null
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (query.isNotEmpty()) {
+                                        IconButton(onClick = { viewModel.updateQuery("") }) {
+                                            Icon(Icons.Default.Close, contentDescription = "Clear")
+                                        }
+                                    }
+                                }
+                            )
+                        },
+                        expanded = false,
+                        onExpandedChange = { },
+                        shape = RoundedCornerShape(24.dp),
+                        colors = SearchBarDefaults.colors(containerColor = Color.White.copy(0.1f))
+                    ) {
+                        // Leave empty
                     }
-                )
+                }
             },
-            expanded = false,
-            onExpandedChange = { },
-        ) {
-            // Leave empty since we are using the grid below instead
-        }
+            hazeState = hazeState,
+            navigationIcon = {
+                // Only show Menu in TopBar if Landscape
+                if (isLandscape) {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, "Menu", tint = Color.White)
+                    }
+                }
+            },
+            actions = {
+                IconButton(onClick = { /* Show DatePicker Dialog */ }) {
+                    Icon(Icons.Default.CalendarToday, "Select Date", tint = Color.White)
+                }
+            }
+        )
+
         when (val state = uiState) {
             is DiscoverUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

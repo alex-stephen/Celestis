@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,14 +16,16 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -36,23 +39,58 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.FavoriteUiState
 import com.example.astrolume.ui.viewModels.FavoriteViewModel
+import dev.chrisbanes.haze.HazeState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoriteScreen(
     viewModel: FavoriteViewModel,
     windowSizeClass: WindowSizeClass,
+    onOpenDrawer: () -> Unit,
+    hazeState: HazeState
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    Surface(
+    Column(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
     ) {
+        ApodTopAppBar(
+            titleContent = {
+                Box(
+                    modifier = Modifier.fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "FAVORITES",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        letterSpacing = 2.sp
+                    )
+                }
+            },
+            hazeState = hazeState,
+            navigationIcon = {
+                // Only show Menu in TopBar if Landscape
+                if (isLandscape) {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, "Menu", tint = Color.White)
+                    }
+                }
+            },
+            actions = {
+                IconButton(onClick = { /* Show DatePicker Dialog */ }) {
+                    Icon(Icons.Default.CalendarToday, "Select Date", tint = Color.White)
+                }
+            }
+        )
         when (val state = uiState) {
             is FavoriteUiState.Loading -> {
                 FavoriteScreenLoading()

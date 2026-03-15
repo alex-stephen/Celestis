@@ -59,9 +59,8 @@ fun ApodDrawerSheet(
             .hazeChild(
                 state = hazeState,
                 style = HazeStyle(
-                    backgroundColor = Color(0xFF111111).copy(alpha = 0.6f),
+                    backgroundColor = Color(0xFF111111),
                     blurRadius = 40.dp,
-                    noiseFactor = 0.1f,
                     tint = null
                 )
             )
@@ -74,7 +73,7 @@ fun ApodDrawerSheet(
     ) {
         Column {
             Text(
-                text = "Astrolume",
+                text = "Menu",
                 style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
                 modifier = Modifier.padding(bottom = 32.dp, top = 16.dp)
