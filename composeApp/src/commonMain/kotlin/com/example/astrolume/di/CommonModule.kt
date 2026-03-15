@@ -10,6 +10,7 @@ import com.example.astrolume.service.NasaApi
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import com.example.astrolume.ui.viewModels.FavoriteViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
+import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import io.ktor.client.HttpClient
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -36,4 +37,6 @@ val commonModule = module {
     viewModel { FavoriteViewModel(get()) }
 
     viewModel { HomeViewModel(get()) }
+
+    viewModel { PhotoDetailViewModel(get()) }
 }

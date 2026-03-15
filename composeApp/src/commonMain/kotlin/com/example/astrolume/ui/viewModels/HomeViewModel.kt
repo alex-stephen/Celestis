@@ -19,7 +19,8 @@ sealed interface HomeUiState {
     object Loading : HomeUiState
     data class Success(
         val todayApod: ApodResponse,
-        val randomApod: ApodResponse? = null
+        val randomApod: ApodResponse? = null,
+        val selectedHdUrl: String? = null
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -32,17 +33,20 @@ class HomeViewModel(
 
     // 2. The Random Stream (Managed in memory, then saved if favorited)
     private val _randomApod = MutableStateFlow<ApodResponse?>(null)
+    private val _selectedHdUrl = MutableStateFlow<String?>(null)
     // Internal State
     val uiState: StateFlow<HomeUiState> = combine(
         todayApodFlow,
-        _randomApod
-    ) { today, random ->
+        _randomApod,
+        _selectedHdUrl
+    ) { today, random, hdUrl ->
         if (today == null) {
             HomeUiState.Loading
         } else {
             HomeUiState.Success(
                 todayApod = today,
-                randomApod = random
+                randomApod = random,
+                selectedHdUrl = hdUrl
             )
         }
     }.stateIn(
@@ -62,6 +66,7 @@ class HomeViewModel(
     private val _isRefilling = MutableStateFlow(false)
     val isRefilling: StateFlow<Boolean> = _isRefilling.asStateFlow()
     private var prefetchJob: Job? = null
+
 
     init {
         refreshAll()
@@ -153,5 +158,13 @@ class HomeViewModel(
         viewModelScope.launch {
             repository.refreshLatest()
         }
+    }
+
+    fun showHdImage(url: String?) {
+        _selectedHdUrl.value = url
+    }
+
+    fun hideHdImage() {
+        _selectedHdUrl.value = null
     }
 }

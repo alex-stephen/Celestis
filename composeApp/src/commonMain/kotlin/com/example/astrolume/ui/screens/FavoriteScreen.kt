@@ -54,6 +54,7 @@ fun FavoriteScreen(
     viewModel: FavoriteViewModel,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
+    onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -104,7 +105,8 @@ fun FavoriteScreen(
                 FavoriteScreenSuccess(
                     state = state,
                     windowSizeClass = windowSizeClass,
-                    onFavoriteClick = viewModel::toggleFavorite
+                    onFavoriteClick = viewModel::toggleFavorite,
+                    onPhotoDetailClick = onPhotoDetailClick
                 )
             }
         }
@@ -120,7 +122,8 @@ fun FavoriteScreenLoading() {
 fun FavoriteScreenSuccess(
     state: FavoriteUiState.Success,
     windowSizeClass: WindowSizeClass,
-    onFavoriteClick: (ApodResponse) -> Unit
+    onFavoriteClick: (ApodResponse) -> Unit,
+    onPhotoDetailClick: (ApodResponse) -> Unit
 ) {
     val displayList = state.favorites
 
@@ -145,6 +148,7 @@ fun FavoriteScreenSuccess(
                 key = { apod -> apod.date }
             ) { apod ->
                 Card(
+                    onClick = { onPhotoDetailClick(apod) },
                     modifier = Modifier
                         .padding(4.dp)
                         .border(1.dp, Color.White, MaterialTheme.shapes.medium),

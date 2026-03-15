@@ -66,6 +66,7 @@ fun DiscoverScreen(
     viewModel: DiscoverViewModel,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
+    onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -144,6 +145,7 @@ fun DiscoverScreen(
                     state = state,
                     windowSizeClass = windowSizeClass,
                     viewModel = viewModel,
+                    onPhotoDetailClick = onPhotoDetailClick
                 )
             }
         }
@@ -161,6 +163,7 @@ fun DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
     viewModel: DiscoverViewModel,
+    onPhotoDetailClick: (ApodResponse) -> Unit
 ) {
     // Determine which list to display
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
@@ -171,7 +174,7 @@ fun DiscoverScreenGrid(
             // MODE A: Discovery Feed (Standard List)
             LazyVerticalGrid(columns = GridCells.Fixed(2)) {
                 items(state.rangeApod, key = { it.date }) { apod ->
-                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) })
+                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) }, onPhotoDetailClick)
                 }
             }
         } else {
@@ -198,7 +201,7 @@ fun DiscoverScreenGrid(
                     items = searchState.items,
                     key = { _, apod -> apod.date }
                 ) { index, apod ->
-                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) })
+                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) }, onPhotoDetailClick)
                     
                     // Trigger load more when near end
                     val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
@@ -262,8 +265,11 @@ fun DiscoverScreenGrid(
 @Composable
 fun ApodCard(
     apod: ApodResponse,
-    onFavoriteClick: (ApodResponse) -> Unit) {
+    onFavoriteClick: (ApodResponse) -> Unit,
+    photoDetialClick: (ApodResponse) -> Unit
+) {
     Card(
+        onClick = {photoDetialClick(apod)},
         modifier = Modifier
             .padding(4.dp)
             .border(1.dp, Color.White, MaterialTheme.shapes.medium ),
