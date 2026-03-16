@@ -144,14 +144,16 @@ fun HomeScreenSuccess(
     var isExpanded by remember { mutableStateOf(false) }
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    LaunchedEffect(displayApod.urlHD, displayApod.url) {
-        val targetUrl = displayApod.urlHD ?: displayApod.url
-        if (targetUrl != null) {
+    // PREDICTIVE HD PREFETCHING: Preload HD image when viewing an APOD
+    LaunchedEffect(displayApod.urlHD) {
+        if (displayApod.urlHD != null) {
+            val imageLoader = SingletonImageLoader.get(context)
             val request = ImageRequest.Builder(context)
-                .data(targetUrl)
+                .data(displayApod.urlHD)
                 .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
                 .build()
-            SingletonImageLoader.get(context).enqueue(request)
+            imageLoader.enqueue(request)
         }
     }
 
@@ -351,8 +353,8 @@ fun CardContent(
                 Text(
                     text = displayApod.date,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
             displayApod.copyright?.let {

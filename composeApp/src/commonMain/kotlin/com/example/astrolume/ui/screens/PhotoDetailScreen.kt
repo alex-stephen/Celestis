@@ -1,5 +1,6 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,9 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,6 +49,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.components.HdImagePopup
+import com.example.astrolume.ui.components.LoadingOverlay
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
@@ -122,11 +127,16 @@ fun PhotoDetailScreen(
             ) {
                 when (val state = uiState) {
                     is PhotoDetailUiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                        // Only show loading overlay after a delay to avoid flash for cached content
+                        var showLoading by remember { mutableStateOf(false) }
+                        
+                        LaunchedEffect(Unit) {
+                            kotlinx.coroutines.delay(300) // Only show if loading takes > 300ms
+                            showLoading = true
+                        }
+                        
+                        if (showLoading) {
+                            LoadingOverlay(message = "Loading Photo Details...")
                         }
                     }
 
@@ -170,22 +180,6 @@ fun PhotoDetailContent(
 ) {
     val apod = state.apod
     val scrollState = rememberScrollState()
-    val context = LocalPlatformContext.current
-
-
-    LaunchedEffect(apod.urlHD, apod.url) {
-        val targetUrl = apod.urlHD ?: apod.url
-        if (targetUrl != null) {
-            val request = ImageRequest.Builder(context)
-                .data(targetUrl)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .build()
-            SingletonImageLoader
-                .get(context)
-
-                .enqueue(request)
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -208,10 +202,25 @@ fun PhotoDetailContent(
                     modifier = Modifier.fillMaxSize(),
                     loading = {
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(40.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Loading image...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 )
@@ -295,12 +304,14 @@ fun FavoriteActionButton(
     hazeState: HazeState,
     enabled: Boolean = true
 ) {
-
-    Box(
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .size(56.dp)
             .clip(RoundedCornerShape(28.dp))
-            .hazeChild(state = hazeState,
+            .hazeChild(
+                state = hazeState,
                 style = HazeStyle(
                     backgroundColor = Color.White.copy(alpha = 0.15f),
                     blurRadius = 40.dp,
@@ -308,13 +319,17 @@ fun FavoriteActionButton(
                     tint = null
                 )
             )
-            .border(0.5.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(28.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
+            .border(0.5.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
+        color = Color.Transparent
     ) {
-        AnimatedFavoriteButton(
-            onFavoriteClick = onClick,
-            isFavorite = apod.isFavorite,
-        )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            AnimatedFavoriteButton(
+                onFavoriteClick = onClick,
+                isFavorite = apod.isFavorite,
+            )
+        }
     }
 }

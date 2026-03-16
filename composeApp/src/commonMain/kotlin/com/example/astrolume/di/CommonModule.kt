@@ -55,11 +55,11 @@ val commonModule = module {
             .build()
     }
 
-    viewModel { DiscoverViewModel(get()) }
+    viewModel { DiscoverViewModel(get(), get(), get<Platform>().context) }
 
     viewModel { FavoriteViewModel(get()) }
 
-    viewModel { HomeViewModel(get()) }
+    viewModel { HomeViewModel(get(), get(), get<Platform>().context) }
 
-    viewModel { PhotoDetailViewModel(get()) }
+    viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context) }
 }

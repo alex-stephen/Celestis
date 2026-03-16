@@ -2,8 +2,11 @@ package com.example.astrolume.ui.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.utils.ImagePrefetcher
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.datetime.toLocalDateTime
 
 sealed interface DiscoverUiState {
     object Loading : DiscoverUiState
@@ -38,7 +42,9 @@ data class PaginatedSearchState(
 
 @OptIn(FlowPreview::class)
 class DiscoverViewModel(
-    private val repository: ApodRepository
+    private val repository: ApodRepository,
+    private val imageLoader: ImageLoader,
+    private val context: PlatformContext
 ) : ViewModel() {
     private val _rangeApod = MutableStateFlow<List<ApodResponse>>(emptyList())
     private val _isRefreshing = MutableStateFlow(false)
@@ -97,6 +103,19 @@ class DiscoverViewModel(
                 }
         }
     }
+    
+    /**
+     * Prefetch images for visible APODs in the discovery feed.
+     * This ensures images are cached when user scrolls.
+     */
+    fun prefetchVisibleImages(apods: List<ApodResponse>) {
+        ImagePrefetcher.prefetchApodBatch(
+            imageLoader = imageLoader,
+            context = context,
+            apods = apods,
+            scope = viewModelScope
+        )
+    }
 
     fun showRange() {
         viewModelScope.launch {
@@ -107,6 +126,12 @@ class DiscoverViewModel(
                 //TODO: get the current month
                 val randomFeed = repository.fetchRange("2026-02-11", "2026-03-11")
                 _rangeApod.value = randomFeed
+                
+                // PREDICTIVE PREFETCHING: Load first batch of images immediately
+                if (randomFeed.isNotEmpty()) {
+                    val firstBatch = randomFeed.take(12) // Prefetch first 12 images
+                    prefetchVisibleImages(firstBatch)
+                }
             } catch (e: Exception) {
                 // Only show error if we have NO local results to show
                 if (_rangeApod.value.isEmpty()) {
@@ -114,37 +139,6 @@ class DiscoverViewModel(
                 }
             } finally {
                 _isRefreshing.value = false
-            }
-        }
-    }
-
-    fun toggleFavorite(apod: ApodResponse) {
-        viewModelScope.launch {
-            try {
-                val newFavoriteStatus = !apod.isFavorite
-                repository.toggleFavorite(apod.date, newFavoriteStatus, apod)
-
-                // Update the static preset list manually so the UI reacts immediately
-                _rangeApod.value = _rangeApod.value.map { currentApod ->
-                    if (currentApod.date == apod.date) {
-                        currentApod.copy(isFavorite = newFavoriteStatus)
-                    } else {
-                        currentApod
-                    }
-                }
-                
-                // Also update search results if present
-                _searchState.value = _searchState.value.copy(
-                    items = _searchState.value.items.map { currentApod ->
-                        if (currentApod.date == apod.date) {
-                            currentApod.copy(isFavorite = newFavoriteStatus)
-                        } else {
-                            currentApod
-                        }
-                    }
-                )
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to update favorite."
             }
         }
     }
@@ -207,6 +201,11 @@ class DiscoverViewModel(
                     hasMore = hasMore,
                     error = null
                 )
+                
+                // PREDICTIVE PREFETCHING: Prefetch new search results
+                if (results.isNotEmpty()) {
+                    prefetchVisibleImages(results.take(12))
+                }
             } catch (e: Exception) {
                 _searchState.value = currentState.copy(
                     isLoading = false,
@@ -215,5 +214,43 @@ class DiscoverViewModel(
                 )
             }
         }
+    }
+
+    fun onDateRangeSelected(startDateMillis: Long?, endDateMillis: Long?) {
+        if (startDateMillis == null) return
+
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _errorMessage.value = null
+            try {
+                // Convert millis to YYYY-MM-DD
+                val startDate = formatMillisToIso(startDateMillis)
+                // If endDate is null or same as start, fetch just one day
+                val endDate = if (endDateMillis != null) formatMillisToIso(endDateMillis) else startDate
+
+                val results = repository.fetchRange(startDate, endDate)
+                _rangeApod.value = results
+                // Clear search query to show the range results
+                _searchQuery.value = ""
+                
+                // PREDICTIVE PREFETCHING: Prefetch date range results
+                if (results.isNotEmpty()) {
+                    prefetchVisibleImages(results.take(12))
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to fetch dates: ${e.message}"
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
+    // Helper (usually in a Utils file)
+    private fun formatMillisToIso(millis: Long): String {
+        val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(millis)
+
+        val localDateTime = instant.toLocalDateTime(kotlinx.datetime.TimeZone.UTC)
+
+        return localDateTime.date.toString()
     }
 }

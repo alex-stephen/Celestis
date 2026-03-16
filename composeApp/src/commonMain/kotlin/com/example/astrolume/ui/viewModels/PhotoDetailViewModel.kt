@@ -2,9 +2,12 @@ package com.example.astrolume.ui.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.data.toResponse
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.utils.ImagePrefetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +25,9 @@ sealed interface PhotoDetailUiState {
 }
 
 class PhotoDetailViewModel(
-    private val repository: ApodRepository
+    private val repository: ApodRepository,
+    private val imageLoader: ImageLoader,
+    private val context: PlatformContext
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PhotoDetailUiState>(PhotoDetailUiState.Loading)
@@ -34,6 +39,15 @@ class PhotoDetailViewModel(
                 val apodEntity = repository.fetchApod(date)
                 val apodResponse = apodEntity.toResponse()
                 _uiState.value = PhotoDetailUiState.Success(apodResponse)
+                
+                // PREDICTIVE HD PREFETCHING: Preload HD image immediately
+                ImagePrefetcher.prefetchApodComplete(
+                    imageLoader = imageLoader,
+                    context = context,
+                    apod = apodResponse,
+                    scope = viewModelScope,
+                    includeHd = true
+                )
             } catch (e: Exception) {
                 _uiState.value = PhotoDetailUiState.Error(e.message ?: "Unknown error")
             }

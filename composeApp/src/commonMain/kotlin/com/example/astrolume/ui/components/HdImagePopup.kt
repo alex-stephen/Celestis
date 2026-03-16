@@ -136,9 +136,7 @@ fun HdImagePopup(
                     )
                 },
             loading = {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
-                }
+                HdImageLoadingIndicator()
             }
         )
 
