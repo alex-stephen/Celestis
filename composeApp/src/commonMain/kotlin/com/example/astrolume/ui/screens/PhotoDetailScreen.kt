@@ -1,9 +1,9 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,11 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,15 +33,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.SingletonImageLoader
+import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 
 @Composable
@@ -92,41 +98,62 @@ fun PhotoDetailScreen(
                 },
                 hazeState = hazeState
             )
+        },
+        floatingActionButton = {
+            // Move the FAB out of the Scrollable Column and into the Scaffold
+            if (uiState is PhotoDetailUiState.Success) {
+                val state = uiState as PhotoDetailUiState.Success
+                FavoriteActionButton(
+                    apod = state.apod,
+                    onClick = viewModel::toggleFavorite,
+                    hazeState = hazeState
+                )
+            }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            when (val state = uiState) {
-                is PhotoDetailUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                when (val state = uiState) {
+                    is PhotoDetailUiState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-                is PhotoDetailUiState.Success -> {
-                    PhotoDetailContent(
-                        state = state,
-                        onImageClick = { viewModel.showHdImage(state.apod.urlHD ?: state.apod.url) },
-                        onFavoriteClick = viewModel::toggleFavorite,
-                        onHideHdImage = viewModel::hideHdImage,
-                        hazeState = hazeState
-                    )
-                }
-                is PhotoDetailUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Error: ${state.message}",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge
+
+                    is PhotoDetailUiState.Success -> {
+                        PhotoDetailContent(
+                            state = state,
+                            onImageClick = {
+                                viewModel.showHdImage(
+                                    state.apod.urlHD ?: state.apod.url
+                                )
+                            },
+                            onHideHdImage = viewModel::hideHdImage,
+                            hazeState = hazeState
                         )
+                    }
+
+                    is PhotoDetailUiState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Error: ${state.message}",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
             }
@@ -138,17 +165,33 @@ fun PhotoDetailScreen(
 fun PhotoDetailContent(
     state: PhotoDetailUiState.Success,
     onImageClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
+    hazeState: HazeState,
     onHideHdImage: () -> Unit,
-    hazeState: HazeState
 ) {
     val apod = state.apod
     val scrollState = rememberScrollState()
+    val context = LocalPlatformContext.current
+
+
+    LaunchedEffect(apod.urlHD, apod.url) {
+        val targetUrl = apod.urlHD ?: apod.url
+        if (targetUrl != null) {
+            val request = ImageRequest.Builder(context)
+                .data(targetUrl)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .build()
+            SingletonImageLoader
+                .get(context)
+
+                .enqueue(request)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .haze(state = hazeState)
                 .verticalScroll(scrollState)
         ) {
             // Header Image - 50% of viewport height, clickable for HD
@@ -207,7 +250,14 @@ fun PhotoDetailContent(
                 // Explanation
                 Text(
                     text = apod.explanation ?: "No description available",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        lineBreak = LineBreak.Paragraph,
+                        hyphens = Hyphens.Auto,
+                        // Note: fontStyle is already inherited from bodyLarge,
+                        // but you can override it here if needed.
+                        //  fontStyle = FontStyle.Normal
+                    ),
+                    textAlign = TextAlign.Justify,
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
@@ -228,27 +278,6 @@ fun PhotoDetailContent(
             }
         }
 
-        // Floating Favorite Button - Prominent on the page
-        FloatingActionButton(
-            onClick = onFavoriteClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp)
-                .hazeChild(state = hazeState, style = HazeStyle(backgroundColor = Color(0xFF111111), blurRadius = 30.dp, tint = null)),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = if (apod.isFavorite) "Remove from favorites" else "Add to favorites",
-                    modifier = Modifier.size(24.dp),
-                    tint = if (apod.isFavorite) Color.Red else Color.White
-                )
-            }
-        }
-
         // HD Image Popup
         if (state.selectedHdUrl != null) {
             HdImagePopup(
@@ -256,5 +285,36 @@ fun PhotoDetailContent(
                 onDismiss = onHideHdImage
             )
         }
+    }
+}
+
+@Composable
+fun FavoriteActionButton(
+    apod: ApodResponse,
+    onClick: () -> Unit,
+    hazeState: HazeState,
+    enabled: Boolean = true
+) {
+
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .hazeChild(state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = Color.White.copy(alpha = 0.15f),
+                    blurRadius = 40.dp,
+                    noiseFactor = 0.15f,
+                    tint = null
+                )
+            )
+            .border(0.5.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(28.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedFavoriteButton(
+            onFavoriteClick = onClick,
+            isFavorite = apod.isFavorite,
+        )
     }
 }

@@ -22,8 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -165,16 +163,19 @@ fun DiscoverScreenGrid(
     viewModel: DiscoverViewModel,
     onPhotoDetailClick: (ApodResponse) -> Unit
 ) {
-    // Determine which list to display
-    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-    val gridCols = if (isLandscape) 3 else 2
+
+    val gridCols = when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> 2
+        WindowWidthSizeClass.Medium -> 3
+        else -> 4
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (state.searchQuery.isEmpty()) {
             // MODE A: Discovery Feed (Standard List)
             LazyVerticalGrid(columns = GridCells.Fixed(2)) {
                 items(state.rangeApod, key = { it.date }) { apod ->
-                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) }, onPhotoDetailClick)
+                    ApodCard(apod, onPhotoDetailClick)
                 }
             }
         } else {
@@ -201,12 +202,12 @@ fun DiscoverScreenGrid(
                     items = searchState.items,
                     key = { _, apod -> apod.date }
                 ) { index, apod ->
-                    ApodCard(apod, onFavoriteClick = { viewModel.toggleFavorite(it) }, onPhotoDetailClick)
+                    ApodCard(apod, onPhotoDetailClick)
                     
                     // Trigger load more when near end
                     val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
                         derivedStateOf {
-                            index >= searchState.items.size - 5 && 
+                            index >= searchState.items.size - 15 &&
                             searchState.hasMore && 
                             !searchState.isLoadingMore
                         }
@@ -265,14 +266,13 @@ fun DiscoverScreenGrid(
 @Composable
 fun ApodCard(
     apod: ApodResponse,
-    onFavoriteClick: (ApodResponse) -> Unit,
     photoDetialClick: (ApodResponse) -> Unit
 ) {
     Card(
         onClick = {photoDetialClick(apod)},
         modifier = Modifier
             .padding(4.dp)
-            .border(1.dp, Color.White, MaterialTheme.shapes.medium ),
+            .border(1.dp, Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.medium),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
@@ -310,19 +310,6 @@ fun ApodCard(
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.align(Alignment.BottomStart)
                 )
-
-                // The Favorite Button
-                IconButton(
-                    onClick = { onFavoriteClick(apod) },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                ) {
-                    Icon(
-                        imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (apod.isFavorite) Color.Red else Color.White,
-                    )
-                }
             }
         }
     }

@@ -50,7 +50,7 @@ class PhotoDetailViewModel(
             apod = apod.copy(isFavorite = newFavoriteState)
         )
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             repository.toggleFavorite(apod.date, newFavoriteState, apod)
         }
     }
