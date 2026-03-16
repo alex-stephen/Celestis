@@ -54,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,7 +72,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.navigation.ApodTopAppBar
@@ -81,6 +86,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
@@ -133,9 +139,21 @@ fun HomeScreenSuccess(
     onShowHdImage: (String?) -> Unit = {},
     onHideHdImage: () -> Unit = {}
 ) {
+    val context = LocalPlatformContext.current
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     var isExpanded by remember { mutableStateOf(false) }
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
+    LaunchedEffect(displayApod.urlHD, displayApod.url) {
+        val targetUrl = displayApod.urlHD ?: displayApod.url
+        if (targetUrl != null) {
+            val request = ImageRequest.Builder(context)
+                .data(targetUrl)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .build()
+            SingletonImageLoader.get(context).enqueue(request)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -370,14 +388,10 @@ fun CardContent(
                 )
             }
 
-            IconButton(onClick = onFavoriteClick, enabled = isVisible) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) Color.Red else Color.White.copy(alpha = if(isVisible) 1f else 0f),
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+            AnimatedFavoriteButton(
+                onFavoriteClick = onFavoriteClick,
+                isFavorite = isFavorite
+            )
         }
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -402,6 +416,53 @@ fun CardContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+fun AnimatedFavoriteButton(
+    onFavoriteClick: () -> Unit,
+    isFavorite: Boolean
+) {
+    var isAnimatingRainbow by remember { mutableStateOf(false) }
+    val wasFavorite = remember { mutableStateOf(isFavorite) }
+
+    // Trigger the animation whenever the user likes the photo
+    LaunchedEffect(isFavorite) {
+        if (isFavorite && !wasFavorite.value) {
+            isAnimatingRainbow = true
+            delay(500)
+            isAnimatingRainbow = false
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "RainbowTransition")
+
+    // Animates the hue from 0 to 360 degrees infinitely
+    val hue by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "HueAnimation"
+    )
+
+    // Interpolate between White and the Rainbow Hue based on loading state
+    val iconColor = when {
+        isAnimatingRainbow -> Color.hsv(hue = hue, saturation = 0.8f, value = 1f)
+        isFavorite -> Color.Red
+        else -> Color.White
+    }
+
+    IconButton(onClick = onFavoriteClick) {
+        Icon(
+            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            contentDescription = "Favorite",
+            tint = iconColor,
+            modifier = Modifier.size(28.dp)
+        )
     }
 }
 
@@ -485,34 +546,6 @@ fun GlassIconButton(
                 modifier = Modifier.size(24.dp)
             )
         }
-    }
-}
-
-@Composable
-fun MediaDisplayLayer(url: String?, hazeState: HazeState) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .haze(state = hazeState)
-    ) {
-        // Layer 1: Blurred Background to prevent letterboxing empty space
-        AsyncImage(
-            model = url,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(50.dp)
-                .alpha(0.4f)
-        )
-
-        // Layer 2: The actual image, fitted properly
-        AsyncImage(
-            model = url,
-            contentDescription = "APOD Image",
-            contentScale = ContentScale.Fit, // Keeps subject perfectly in frame
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
 

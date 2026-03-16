@@ -29,13 +29,21 @@ fun ApodBottomNavBar(navController: NavHostController) {
         )
 
         items.forEach { (screen, icon, label) ->
+            val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true
+            
             NavigationBarItem(
-                selected = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true,
+                selected = isInHierarchy,
                 onClick = {
-                    navController.navigate(screen) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                    if (isInHierarchy) {
+                        // Already in this section's hierarchy - pop back to root
+                        navController.popBackStack(route = screen, inclusive = false)
+                    } else {
+                        // Navigate to new section
+                        navController.navigate(screen) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 },
                 icon = { Icon(icon, contentDescription = label) },

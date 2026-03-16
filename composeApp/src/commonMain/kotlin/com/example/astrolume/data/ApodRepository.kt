@@ -1,6 +1,7 @@
 package com.example.astrolume.data
 
 import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOneOrNull
 import coil3.ImageLoader
 import coil3.request.ImageRequest
@@ -191,8 +192,10 @@ class ApodRepository(
         }
     }
 
-    fun getLocalFavorites(): List<ApodEntity> {
-        return queries.getAllFavorites().executeAsList()
+    fun getLocalFavorites(): Flow<List<ApodEntity>> {
+        return queries.getAllFavorites()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
     }
 
     // Extensions for cleaner Repository code

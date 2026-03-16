@@ -31,9 +31,6 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -125,14 +122,11 @@ fun FavoriteScreenSuccess(
     onFavoriteClick: (ApodResponse) -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit
 ) {
-    val displayList = state.favorites
 
-    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-
-    var gridCols by remember { mutableStateOf(2)}
-
-    if (isLandscape) {
-        gridCols = 3
+    val gridCols = when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> 2
+        WindowWidthSizeClass.Medium -> 3
+        else -> 4
     }
 
     Column(
@@ -144,46 +138,51 @@ fun FavoriteScreenSuccess(
             contentPadding = PaddingValues(4.dp)
         ) {
             items(
-                items = displayList,
-                key = { apod -> apod.date }
+                items = state.favorites,
+                // Date is a good key, but ensure it's unique!
+                key = { it.date }
             ) { apod ->
-                Card(
-                    onClick = { onPhotoDetailClick(apod) },
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .border(1.dp, Color.White, MaterialTheme.shapes.medium),
-                    elevation = CardDefaults.cardElevation(4.dp)
-                ) {
-                    val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-                        apod.thumbnailUrl ?: apod.url
-                    } else {
-                        apod.url
-                    }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        AsyncImage(
-                            model = imageUrl,
-                            contentDescription = apod.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1f)
-                        )
+                FavoriteCard(
+                    apod = apod,
+                    onFavoriteClick = { onFavoriteClick(apod) },
+                    onPhotoDetailClick = { onPhotoDetailClick(apod) }
+                )
+            }
+        }
+    }
+}
 
-                        // The Favorite Button
-                        IconButton(
-                            onClick = { onFavoriteClick(apod) },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (apod.isFavorite) Color.Red else Color.White,
-                            )
-                        }
-                    }
-                }
+@Composable
+fun FavoriteCard(
+    apod: ApodResponse,
+    onFavoriteClick: () -> Unit,
+    onPhotoDetailClick: () -> Unit
+) {
+    Card(
+        onClick = onPhotoDetailClick,
+        modifier = Modifier
+            .padding(4.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.medium),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = if (apod.mediaType == "video") apod.thumbnailUrl else apod.url,
+                contentDescription = apod.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f)
+            )
+
+            IconButton(
+                onClick = onFavoriteClick,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
+            ) {
+                // Ensure this icon redraws when 'apod' changes
+                Icon(
+                    imageVector = if (apod.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (apod.isFavorite) Color.Red else Color.White,
+                )
             }
         }
     }

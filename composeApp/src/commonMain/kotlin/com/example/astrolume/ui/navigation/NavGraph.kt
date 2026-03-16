@@ -1,5 +1,10 @@
 package com.example.astrolume.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -68,7 +73,22 @@ fun NavGraph(
             )
         }
 
-        composable<Screen.PhotoDetail> { backStackEntry ->
+        composable<Screen.PhotoDetail>(
+            enterTransition = {
+                fadeIn(animationSpec = tween(300)) +
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(300)
+                )
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(300)) +
+                slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(300)
+                )
+            }
+        ) { backStackEntry ->
             val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
             val viewModel: PhotoDetailViewModel = koinViewModel()
             PhotoDetailScreen(
