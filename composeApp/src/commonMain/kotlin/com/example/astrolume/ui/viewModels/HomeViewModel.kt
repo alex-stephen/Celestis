@@ -2,8 +2,11 @@ package com.example.astrolume.ui.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.ImageLoader
+import coil3.PlatformContext
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.utils.ImagePrefetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
@@ -26,7 +29,9 @@ sealed interface HomeUiState {
 }
 
 class HomeViewModel(
-    private val repository: ApodRepository
+    private val repository: ApodRepository,
+    private val imageLoader: ImageLoader,
+    private val context: PlatformContext
 ) : ViewModel() {
 
     private val todayApodFlow = repository.observeLatestApod()
@@ -108,6 +113,14 @@ class HomeViewModel(
                 val newItems = repository.fetchRandom(needed)
 
                 randomQueue.addAll(newItems)
+                
+                // ZERO-LATENCY MAGIC: Prefetch all images in the queue immediately
+                ImagePrefetcher.prefetchApodBatch(
+                    imageLoader = imageLoader,
+                    context = context,
+                    apods = newItems,
+                    scope = viewModelScope
+                )
 
                 // If it was the first time ever, show the first item immediately
                 if (initial && _randomApod.value == null) {

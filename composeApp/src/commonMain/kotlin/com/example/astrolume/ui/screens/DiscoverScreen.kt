@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,7 +28,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +46,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -51,12 +56,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.ui.components.ShimmerApodGrid
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import dev.chrisbanes.haze.HazeState
+import kotlin.time.Clock
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,6 +77,8 @@ fun DiscoverScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ApodTopAppBar(
@@ -125,7 +134,7 @@ fun DiscoverScreen(
                 }
             },
             actions = {
-                IconButton(onClick = { /* Show DatePicker Dialog */ }) {
+                IconButton(onClick = { showDatePicker = true }) {
                     Icon(Icons.Default.CalendarToday, "Select Date", tint = Color.White)
                 }
             }
@@ -133,9 +142,13 @@ fun DiscoverScreen(
 
         when (val state = uiState) {
             is DiscoverUiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                // Professional loading with shimmer effect
+                val gridCols = when (windowSizeClass.widthSizeClass) {
+                    WindowWidthSizeClass.Compact -> 2
+                    WindowWidthSizeClass.Medium -> 3
+                    else -> 4
                 }
+                ShimmerApodGrid(columns = gridCols, itemCount = 8)
             }
             is DiscoverUiState.Error -> DiscoverScreenError(state)
             is DiscoverUiState.Success -> {
@@ -148,12 +161,17 @@ fun DiscoverScreen(
             }
         }
     }
+    if (showDatePicker) {
+        ApodDateRangePickerDialog(
+            onDismiss = { showDatePicker = false },
+            onConfirm = { start, end ->
+                viewModel.onDateRangeSelected(start, end)
+                showDatePicker = false
+            }
+        )
+    }
 }
 
-@Composable
-fun DiscoverScreenLoading() {
-
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -281,13 +299,24 @@ fun ApodCard(
             apod.url
         }
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = imageUrl,
                 contentDescription = apod.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
+                    .aspectRatio(1f),
+                loading = {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             )
 
             Box(
@@ -317,41 +346,127 @@ fun ApodCard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApodDateRangePicker(onRangeSelected: (Long?, Long?) -> Unit) {
-    // 31 days in milliseconds
-    val maxRangeMillis = 31L * 24 * 60 * 60 * 1000
-
+fun ApodDateRangePickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Long?, Long?) -> Unit
+) {
     val dateRangePickerState = rememberDateRangePickerState(
+        // Start in year/month picker mode for easier navigation
+        initialDisplayMode = DisplayMode.Input,
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                return true // Allow starting on any date (or restrict to past dates here)
+                // Prevent selecting future dates beyond current time
+                val now = Clock.System.now().toEpochMilliseconds()
+                return utcTimeMillis <= now
             }
 
             override fun isSelectableYear(year: Int): Boolean {
-                return year <= 2026 // APOD started in 1995, max is current year
+                // NASA APOD started on June 16, 1995
+                return year in 1995..2026
             }
         }
     )
 
-    // Enforce the 31-day limit reactively
-    LaunchedEffect(dateRangePickerState.selectedEndDateMillis) {
-        val start = dateRangePickerState.selectedStartDateMillis
-        val end = dateRangePickerState.selectedEndDateMillis
+    val confirmEnabled by remember {
+        derivedStateOf { dateRangePickerState.selectedStartDateMillis != null }
+    }
 
-        if (start != null && end != null) {
-            if (end - start > maxRangeMillis) {
-                // If they select a range larger than 31 days, reset the end date
-                dateRangePickerState.setSelection(start, null)
+    // Validate 31-day constraint
+    val isRangeValid by remember {
+        derivedStateOf {
+            val start = dateRangePickerState.selectedStartDateMillis
+            val end = dateRangePickerState.selectedEndDateMillis
+            
+            // If only start is selected or end is null, range is valid
+            if (start == null || end == null) {
+                true
+            } else if (start == end) {
+                // Same date clicked twice - treat as single day (inclusive)
+                true
             } else {
-                onRangeSelected(start, end)
+                // Check 31-day limit
+                val diffMillis = end - start
+                val daysDiff = diffMillis / (24 * 60 * 60 * 1000)
+                daysDiff <= 31
             }
         }
     }
 
-    DateRangePicker(
-        state = dateRangePickerState,
-        modifier = Modifier.fillMaxWidth().height(400.dp)
-    )
+    // Build helpful headline message
+    val headlineMessage by remember {
+        derivedStateOf {
+            val start = dateRangePickerState.selectedStartDateMillis
+            val end = dateRangePickerState.selectedEndDateMillis
+            
+            when {
+                start != null && end != null -> {
+                    if (start == end) {
+                        "Single day selected"
+                    } else {
+                        val daysDiff = (end - start) / (24 * 60 * 60 * 1000)
+                        if (daysDiff > 31) {
+                            "Range too long: $daysDiff days (max 31)"
+                        } else {
+                            "$daysDiff days selected"
+                        }
+                    }
+                }
+                start != null -> "Select end date (max 31 days from start)"
+                else -> "Select start date"
+            }
+        }
+    }
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = {
+                    val startMillis = dateRangePickerState.selectedStartDateMillis
+                    val endMillis = dateRangePickerState.selectedEndDateMillis
+                    
+                    // Handle same-date selection: treat as inclusive single day
+                    if (startMillis != null && endMillis == null) {
+                        // User only selected start date - use same date as end
+                        onConfirm(startMillis, startMillis)
+                    } else {
+                        onConfirm(startMillis, endMillis)
+                    }
+                },
+                enabled = confirmEnabled && isRangeValid
+            ) {
+                Text("Confirm")
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DateRangePicker(
+            state = dateRangePickerState,
+            title = { 
+                Text(
+                    "Select Date Range (1995-2026)",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.titleMedium
+                ) 
+            },
+            headline = {
+                Text(
+                    text = headlineMessage,
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isRangeValid) 
+                        MaterialTheme.colorScheme.onSurface 
+                    else 
+                        MaterialTheme.colorScheme.error
+                )
+            },
+            showModeToggle = true // Enable year/month quick selection
+        )
+    }
 }
 
 @Composable
