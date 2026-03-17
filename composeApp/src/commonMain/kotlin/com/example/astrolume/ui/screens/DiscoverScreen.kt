@@ -291,7 +291,10 @@ fun ApodCard(
         modifier = Modifier
             .padding(4.dp)
             .border(1.dp, Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.medium),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
             apod.thumbnailUrl ?: apod.url

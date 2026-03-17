@@ -193,7 +193,6 @@ fun HomeScreenSuccess(
                             text = "CELESTIS",
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
-                            letterSpacing = 2.sp
                         )
                     }
                 },

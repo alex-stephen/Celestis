@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Menu
@@ -36,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
@@ -70,7 +68,6 @@ fun FavoriteScreen(
                         text = "FAVORITES",
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White,
-                        letterSpacing = 2.sp
                     )
                 }
             },
@@ -83,11 +80,6 @@ fun FavoriteScreen(
                     }
                 }
             },
-            actions = {
-                IconButton(onClick = { /* Show DatePicker Dialog */ }) {
-                    Icon(Icons.Default.CalendarToday, "Select Date", tint = Color.White)
-                }
-            }
         )
         when (val state = uiState) {
             is FavoriteUiState.Loading -> {
@@ -163,7 +155,10 @@ fun FavoriteCard(
         modifier = Modifier
             .padding(4.dp)
             .border(1.dp, Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.medium),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(

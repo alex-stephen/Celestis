@@ -1,5 +1,6 @@
 package com.example.astrolume.ui.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,8 +17,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.hazeChild
 
 @Composable
 fun ApodTopAppBar(
@@ -29,15 +29,7 @@ fun ApodTopAppBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // Scrim to ensure text readability over bright images
-            .hazeChild(
-                state = hazeState,
-                style = HazeStyle(
-                    backgroundColor = Color(0xFF111111),
-                    blurRadius = 40.dp,
-                    tint = null
-                )
-            )
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .drawBehind {
                 val strokeWidthPx = 1.dp.toPx()
                 val verticalOffset = size.height - strokeWidthPx / 2
@@ -61,7 +53,7 @@ fun ApodTopAppBar(
 
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.75f) // Constrain width so it doesn't hit the icons
+                .fillMaxWidth(0.75f)
                 .fillMaxHeight()
                 .align(Alignment.Center),
             contentAlignment = Alignment.Center
