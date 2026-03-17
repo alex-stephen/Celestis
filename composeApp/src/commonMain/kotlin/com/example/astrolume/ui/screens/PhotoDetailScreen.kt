@@ -42,11 +42,7 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.SingletonImageLoader
-import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.LoadingOverlay
@@ -78,7 +74,7 @@ fun PhotoDetailScreen(
             ApodTopAppBar(
                 titleContent = {
                     Text(
-                        text = "Photo Detail",
+                        text = "PHOTO DETAIL",
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White
                     )
