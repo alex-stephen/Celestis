@@ -2,6 +2,8 @@ package com.example.astrolume
 
 import coil3.PlatformContext
 import com.example.astrolume.database.AppDatabase
+import com.example.astrolume.ui.utils.IosShareManager
+import com.example.astrolume.ui.utils.ShareManager
 import org.koin.dsl.module
 
 class IOSPlatform : Platform {
@@ -17,6 +19,7 @@ val iosModule = module {
             driver = get(),
         )
     }
+    single<ShareManager> { IosShareManager() }
 }
 
 actual fun getPlatform(): Platform = IOSPlatform()

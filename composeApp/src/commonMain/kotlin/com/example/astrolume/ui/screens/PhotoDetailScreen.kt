@@ -4,11 +4,12 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,22 +51,18 @@ import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
-import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.model.isVideo
 import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.LoadingOverlay
 import com.example.astrolume.ui.navigation.ApodTopAppBar
-import com.example.astrolume.ui.utils.HapticFeedbackType
-import com.example.astrolume.ui.utils.createHapticFeedback
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.haze
-import dev.chrisbanes.haze.hazeChild
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -105,7 +102,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onShare) {
+                    IconButton(onClick = { viewModel.shareApod() }) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "Share",
@@ -116,17 +113,6 @@ fun SharedTransitionScope.PhotoDetailScreen(
                 hazeState = hazeState
             )
         },
-        floatingActionButton = {
-            // Move the FAB out of the Scrollable Column and into the Scaffold
-            if (uiState is PhotoDetailUiState.Success) {
-                val state = uiState as PhotoDetailUiState.Success
-                FavoriteActionButton(
-                    apod = state.apod,
-                    onClick = viewModel::toggleFavorite,
-                    hazeState = hazeState
-                )
-            }
-        }
     ) { paddingValues ->
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -160,6 +146,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
                                     state.apod.urlHD ?: state.apod.url
                                 )
                             },
+                            onFavoriteClick = viewModel::toggleFavorite,
                             onHideHdImage = viewModel::hideHdImage,
                             hazeState = hazeState,
                             onNavigateBack = onNavigateBack,
@@ -190,6 +177,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
 fun SharedTransitionScope.PhotoDetailContent(
     state: PhotoDetailUiState.Success,
     onImageClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
     hazeState: HazeState,
     onHideHdImage: () -> Unit,
     onNavigateBack: () -> Unit,
@@ -308,16 +296,25 @@ fun SharedTransitionScope.PhotoDetailContent(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // Date pill
-                Surface(
-                    modifier = Modifier.clip(RoundedCornerShape(50)),
-                    color = MaterialTheme.colorScheme.secondaryContainer
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = apod.date,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    Surface(
+                        modifier = Modifier.clip(RoundedCornerShape(50)),
+                        color = MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = apod.date,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    AnimatedFavoriteButton(
+                        onFavoriteClick = onFavoriteClick,
+                        isFavorite = apod.isFavorite
                     )
                 }
 
@@ -335,12 +332,14 @@ fun SharedTransitionScope.PhotoDetailContent(
                 // Explanation
                 Text(
                     text = apod.explanation ?: "No description available",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp), // Fine-tune internal balance
                     style = MaterialTheme.typography.bodyLarge.copy(
                         lineBreak = LineBreak.Paragraph,
                         hyphens = Hyphens.Auto,
-                        // Note: fontStyle is already inherited from bodyLarge,
-                        // but you can override it here if needed.
-                        //  fontStyle = FontStyle.Normal
+                        lineHeight = 24.sp,
+                        letterSpacing = 0.5.sp
                     ),
                     textAlign = TextAlign.Justify,
                     color = MaterialTheme.colorScheme.onBackground
@@ -368,48 +367,6 @@ fun SharedTransitionScope.PhotoDetailContent(
             HdImagePopup(
                 imageUrl = state.selectedHdUrl,
                 onDismiss = onHideHdImage
-            )
-        }
-    }
-}
-
-@Composable
-fun FavoriteActionButton(
-    apod: ApodResponse,
-    onClick: () -> Unit,
-    hazeState: HazeState,
-    enabled: Boolean = true
-) {
-    val haptic = remember { createHapticFeedback() }
-    
-    Surface(
-        onClick = {
-            haptic.performHapticFeedback(HapticFeedbackType.LIGHT_IMPACT)
-            onClick()
-        },
-        enabled = enabled,
-        modifier = Modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .hazeChild(
-                state = hazeState,
-                style = HazeStyle(
-                    backgroundColor = Color.White.copy(alpha = 0.15f),
-                    blurRadius = 40.dp,
-                    noiseFactor = 0.15f,
-                    tint = null
-                )
-            )
-            .border(0.5.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
-        color = Color.Transparent
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            AnimatedFavoriteButton(
-                onFavoriteClick = onClick,
-                isFavorite = apod.isFavorite,
             )
         }
     }

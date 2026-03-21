@@ -7,7 +7,6 @@ import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.crossfade
 import coil3.size.Precision
-import coil3.util.DebugLogger
 import com.example.astrolume.Platform
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.network.createHttpClient
@@ -59,7 +58,7 @@ val commonModule = module {
 
     viewModel { FavoriteViewModel(get()) }
 
-    viewModel { HomeViewModel(get(), get(), get<Platform>().context) }
+    viewModel { HomeViewModel(get(), get(), get<Platform>().context, get()) }
 
-    viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context) }
+    viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context, get()) }
 }

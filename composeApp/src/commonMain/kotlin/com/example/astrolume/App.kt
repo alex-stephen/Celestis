@@ -24,13 +24,22 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalComposeUiApi::class)
 @Composable
-fun App() {
+fun App(
+    initialDeepLinkDate: String? = null
+) {
     val navController = rememberNavController()
     val windowSizeClass = rememberWindowSizeClass()
     val widthClass = windowSizeClass.widthSizeClass
     val hazeState = remember { HazeState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // Handle deep link navigation
+    LaunchedEffect(initialDeepLinkDate) {
+        initialDeepLinkDate?.let { date ->
+            navController.navigate(com.example.astrolume.ui.navigation.Screen.PhotoDetail(date))
+        }
+    }
 
     // NEW: Auto-close drawer when switching to Compact (Portrait)
     LaunchedEffect(widthClass) {

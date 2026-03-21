@@ -5,8 +5,6 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -94,7 +92,6 @@ fun NavGraph(
                     viewModel = viewModel,
                     windowSizeClass = windowSizeClass,
                     onNavigateBack = { navController.navigateUp() },
-                    onShare = { /* TODO: Implement share */ },
                     hazeState = hazeState,
                     animatedVisibilityScope = this
                 )
