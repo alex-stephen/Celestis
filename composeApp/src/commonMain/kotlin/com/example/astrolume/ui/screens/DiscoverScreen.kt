@@ -73,6 +73,10 @@ import com.example.astrolume.ui.utils.VideoUrlUtils
 import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -90,7 +94,39 @@ fun SharedTransitionScope.DiscoverScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background layer with hazeSource (like HomeScreen pattern)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = hazeState)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            when (val state = uiState) {
+                is DiscoverUiState.Loading -> {
+                    // Professional loading with shimmer effect
+                    val gridCols = when (windowSizeClass.widthSizeClass) {
+                        WindowWidthSizeClass.Compact -> 2
+                        WindowWidthSizeClass.Medium -> 3
+                        else -> 4
+                    }
+                    ShimmerApodGrid(columns = gridCols, itemCount = 8)
+                }
+
+                is DiscoverUiState.Error -> DiscoverScreenError(state)
+                is DiscoverUiState.Success -> {
+                    DiscoverScreenGrid(
+                        state = state,
+                        windowSizeClass = windowSizeClass,
+                        viewModel = viewModel,
+                        onPhotoDetailClick = onPhotoDetailClick,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        contentPadding = PaddingValues(top = 80.dp, bottom = 80.dp)
+                    )
+                }
+            }
+        }
+        
         DiscoverSearchAppBar(
             query = query,
             onQueryChange = viewModel::updateQuery,
@@ -98,29 +134,8 @@ fun SharedTransitionScope.DiscoverScreen(
             isLandscape = isLandscape,
             onOpenDrawer = onOpenDrawer,
             onOpenDatePicker = { showDatePicker = true },
+            hazeState = hazeState
         )
-
-        when (val state = uiState) {
-            is DiscoverUiState.Loading -> {
-                // Professional loading with shimmer effect
-                val gridCols = when (windowSizeClass.widthSizeClass) {
-                    WindowWidthSizeClass.Compact -> 2
-                    WindowWidthSizeClass.Medium -> 3
-                    else -> 4
-                }
-                ShimmerApodGrid(columns = gridCols, itemCount = 8)
-            }
-            is DiscoverUiState.Error -> DiscoverScreenError(state)
-            is DiscoverUiState.Success -> {
-                DiscoverScreenGrid(
-                    state = state,
-                    windowSizeClass = windowSizeClass,
-                    viewModel = viewModel,
-                    onPhotoDetailClick = onPhotoDetailClick,
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
-        }
     }
     if (showDatePicker) {
         CelestisRangePicker(
@@ -139,7 +154,8 @@ fun SharedTransitionScope.DiscoverScreenGrid(
     windowSizeClass: WindowSizeClass,
     viewModel: DiscoverViewModel,
     onPhotoDetailClick: (ApodResponse) -> Unit,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    contentPadding: PaddingValues
 ) {
 
     val gridCols = when (windowSizeClass.widthSizeClass) {
@@ -153,7 +169,7 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             // MODE A: Discovery Feed (Standard List)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridCols),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = contentPadding
             )
             {
                 items(state.rangeApod, key = { it.date }) { apod ->
@@ -166,7 +182,7 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridCols),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = contentPadding
             ) {
                 // Show initial loading
                 if (searchState.isLoading && searchState.items.isEmpty()) {
@@ -404,15 +420,23 @@ fun DiscoverSearchAppBar(
     isLandscape: Boolean,
     onOpenDrawer: () -> Unit,
     onOpenDatePicker: () -> Unit,
+    hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     // A unified header that uses haze for a glassmorphism effect (premium feel)
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)),
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
+                    blurRadius = 20.dp,
+                    tint = HazeTint(Color.White.copy(alpha = 0.05f)),
+                )
+            ),
         color = Color.Transparent,
-        shadowElevation = 2.dp
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -437,7 +461,7 @@ fun DiscoverSearchAppBar(
                     .padding(horizontal = 8.dp)
                     .height(44.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -453,7 +477,7 @@ fun DiscoverSearchAppBar(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -462,7 +486,7 @@ fun DiscoverSearchAppBar(
                                 Text(
                                     text = "Search APODs...",
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
                                 )
                             }
                             innerTextField()

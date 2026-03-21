@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberDrawerState
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -97,21 +97,27 @@ fun App(
                         .then(
                             if (isCompact) Modifier.nestedScroll(bottomBarState.nestedScrollConnection)
                             else Modifier
-                        ),
+                        )
                 ) { padding ->
-                    NavGraph(
-                        navController = navController,
-                        windowSizeClass = windowSizeClass,
-                        modifier = Modifier.padding(padding),
-                        onOpenDrawer = {
-                            // Only allow opening if NOT in portrait
-                            if (widthClass != WindowWidthSizeClass.Compact) {
-                                scope.launch { drawerState.open() }
-                            }
-                        },
-                        hazeState = hazeState,
-                        bottomPadding = animatedBottomPadding
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    ) {
+                        NavGraph(
+                            navController = navController,
+                            windowSizeClass = windowSizeClass,
+                            modifier = Modifier.fillMaxSize(),
+                            onOpenDrawer = {
+                                // Only allow opening if NOT in portrait
+                                if (widthClass != WindowWidthSizeClass.Compact) {
+                                    scope.launch { drawerState.open() }
+                                }
+                            },
+                            hazeState = hazeState,
+                            bottomPadding = animatedBottomPadding
+                        )
+                    }
                 }
                 if (isCompact) {
                     Surface(
@@ -119,11 +125,13 @@ fun App(
                             .align(Alignment.BottomCenter) // Align to the very bottom
                             .offset { IntOffset(0, animatedOffset.roundToInt()) }
                             .alpha(animatedAlpha),
-                        color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.9f)
+                        color = Color.Transparent, // CHANGE: Make this transparent
+                        tonalElevation = 0.dp
                     ) {
                         ApodBottomNavBar(
                             navController = navController,
-                            isEnabled = bottomBarState.isVisible
+                            isEnabled = bottomBarState.isVisible,
+                            hazeState = hazeState,
                         )
                     }
                 }
