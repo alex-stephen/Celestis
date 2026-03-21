@@ -37,7 +37,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,12 +57,12 @@ fun ApodDrawerSheet(
             .fillMaxHeight()
             .width(300.dp)
             .clip(RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp))
-            .hazeChild(
+            .hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
-                    backgroundColor = Color(0xFF111111),
+                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
                     blurRadius = 40.dp,
-                    tint = null
+                    tint = HazeTint.Unspecified
                 )
             )
             .border(

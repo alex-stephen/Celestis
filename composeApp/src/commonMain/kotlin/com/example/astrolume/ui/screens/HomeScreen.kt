@@ -84,8 +84,9 @@ import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.haze
-import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.delay
 
 @Composable
@@ -157,7 +158,7 @@ fun HomeScreenSuccess(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .haze(state = hazeState)
+                .hazeSource(state = hazeState)
                 .then(
                     if (!displayApod.isVideo()) {
                         Modifier.clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
@@ -306,7 +307,14 @@ fun HomeScreenSuccess(
                     }
                 )
                 .clip(RoundedCornerShape(28.dp))
-                .hazeChild(state = hazeState, style = HazeStyle(backgroundColor = Color(0xFF111111), blurRadius = 30.dp, tint = null))
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
+                        blurRadius = 30.dp,
+                        tint = HazeTint.Unspecified
+                    )
+                )
                 .border(1.dp, Color.White.copy(0.15f), RoundedCornerShape(28.dp))
                 .clickable { isExpanded = !isExpanded }
         ) {
@@ -353,12 +361,15 @@ fun CardContent(
             Surface(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .hazeChild(state = hazeState,
+                    .hazeEffect(
+                        state = hazeState,
                         style = HazeStyle(
-                            backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+                            backgroundColor = MaterialTheme.colorScheme.secondaryContainer.copy(
+                                alpha = 0.8f
+                            ),
                             blurRadius = 30.dp,
                             noiseFactor = 0.15f,
-                            tint = null
+                            tint = HazeTint.Unspecified
                         )
                     ),
             ) {
@@ -515,12 +526,13 @@ fun RandomApodActionButton(
         modifier = Modifier
             .size(56.dp)
             .clip(CircleShape)
-            .hazeChild(state = hazeState,
+            .hazeEffect(
+                state = hazeState,
                 style = HazeStyle(
                     backgroundColor = Color.White.copy(alpha = 0.15f),
                     blurRadius = 30.dp,
                     noiseFactor = 0.15f,
-                    tint = null
+                    tint = HazeTint.Unspecified
                 )
             )
             .border(0.5.dp, Color.White.copy(alpha = 0.3f), CircleShape)
@@ -547,12 +559,13 @@ fun GlassIconButton(
         modifier = modifier
             .size(56.dp)
             .clip(CircleShape)
-            .hazeChild(state = hazeState,
+            .hazeEffect(
+                state = hazeState,
                 style = HazeStyle(
                     backgroundColor = Color.White.copy(alpha = 0.15f),
                     blurRadius = 30.dp,
                     noiseFactor = 0.15f,
-                    tint = null
+                    tint = HazeTint.Unspecified
                 )
             )
             .border(1.dp, Color.White.copy(alpha = if (enabled) 0.2f else 0f), CircleShape)

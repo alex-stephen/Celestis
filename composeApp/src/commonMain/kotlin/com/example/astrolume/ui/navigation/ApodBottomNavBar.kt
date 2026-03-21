@@ -5,7 +5,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -14,22 +13,54 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 @Composable
-fun ApodBottomNavBar(navController: NavHostController, isEnabled: Boolean) {
+fun ApodBottomNavBar(
+    navController: NavHostController,
+    isEnabled: Boolean,
+    hazeState: HazeState,
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
     NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
+        modifier = Modifier
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f), // Slightly transparent for blur visibility
+                    blurRadius = 30.dp,
+                    tint = HazeTint.Unspecified, // Subtle tint for depth
+                )
+            )
+            .drawBehind { 
+                val strokeWidthPx = 1.dp.toPx()
+                val verticalOffset = size.height - strokeWidthPx / 2
+                drawLine(
+                    color = Color.White.copy(alpha = 0.15f),
+                    start = Offset(0f, verticalOffset),
+                    end = Offset(size.width, verticalOffset),
+                    strokeWidth = strokeWidthPx
+                )
+            },
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp
     ) {
         val items = listOf(
             Triple(Screen.Home, Icons.Default.Home, "Home"),

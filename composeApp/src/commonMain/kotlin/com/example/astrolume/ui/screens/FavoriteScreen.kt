@@ -3,6 +3,7 @@ package com.example.astrolume.ui.screens
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.FavoriteUiState
 import com.example.astrolume.ui.viewModels.FavoriteViewModel
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -49,9 +51,35 @@ fun SharedTransitionScope.FavoriteScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = hazeState)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            when (val state = uiState) {
+                is FavoriteUiState.Loading -> {
+                    FavoriteScreenLoading()
+                }
+
+                is FavoriteUiState.Error -> {
+                    FavoriteScreenError(state)
+                }
+
+                is FavoriteUiState.Success -> {
+                    FavoriteScreenSuccess(
+                        state = state,
+                        windowSizeClass = windowSizeClass,
+                        onPhotoDetailClick = onPhotoDetailClick,
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
+            }
+        }
         ApodTopAppBar(
             titleContent = {
                 Box(
@@ -75,25 +103,6 @@ fun SharedTransitionScope.FavoriteScreen(
                 }
             },
         )
-        when (val state = uiState) {
-            is FavoriteUiState.Loading -> {
-                FavoriteScreenLoading()
-            }
-
-            is FavoriteUiState.Error -> {
-                FavoriteScreenError(state)
-            }
-
-            is FavoriteUiState.Success -> {
-                FavoriteScreenSuccess(
-                    state = state,
-                    windowSizeClass = windowSizeClass,
-                    onFavoriteClick = viewModel::toggleFavorite,
-                    onPhotoDetailClick = onPhotoDetailClick,
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
-        }
     }
 }
 
@@ -107,7 +116,6 @@ fun FavoriteScreenLoading() {
 fun SharedTransitionScope.FavoriteScreenSuccess(
     state: FavoriteUiState.Success,
     windowSizeClass: WindowSizeClass,
-    onFavoriteClick: (ApodResponse) -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
@@ -124,7 +132,7 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridCols),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(4.dp)
+            contentPadding = PaddingValues(top = 80.dp, bottom = 80.dp)
         ) {
             items(
                 items = state.favorites,

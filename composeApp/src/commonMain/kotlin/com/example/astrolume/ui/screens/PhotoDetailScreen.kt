@@ -27,7 +27,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -62,7 +61,7 @@ import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeSource
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -82,90 +81,56 @@ fun SharedTransitionScope.PhotoDetailScreen(
         viewModel.loadApodByDate(date)
     }
 
-    Scaffold(
-        topBar = {
-            ApodTopAppBar(
-                titleContent = {
-                    Text(
-                        text = "PHOTO DETAIL",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.shareApod() }) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = Color.White
-                        )
-                    }
-                },
-                hazeState = hazeState
-            )
-        },
-    ) { paddingValues ->
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                when (val state = uiState) {
-                    is PhotoDetailUiState.Loading -> {
-                        // Only show loading overlay after a delay to avoid flash for cached content
-                        var showLoading by remember { mutableStateOf(false) }
-                        
-                        LaunchedEffect(Unit) {
-                            kotlinx.coroutines.delay(300) // Only show if loading takes > 300ms
-                            showLoading = true
-                        }
-                        
-                        if (showLoading) {
-                            LoadingOverlay(message = "Loading Photo Details...")
-                        }
+            when (val state = uiState) {
+                is PhotoDetailUiState.Loading -> {
+                    // Only show loading overlay after a delay to avoid flash for cached content
+                    var showLoading by remember { mutableStateOf(false) }
+                    
+                    LaunchedEffect(Unit) {
+                        kotlinx.coroutines.delay(300) // Only show if loading takes > 300ms
+                        showLoading = true
                     }
-
-                    is PhotoDetailUiState.Success -> {
-                        PhotoDetailContent(
-                            state = state,
-                            onImageClick = {
-                                viewModel.showHdImage(
-                                    state.apod.urlHD,
-                                    state.apod.url
-                                )
-                            },
-                            onFavoriteClick = viewModel::toggleFavorite,
-                            onHideHdImage = viewModel::hideHdImage,
-                            hazeState = hazeState,
-                            onNavigateBack = onNavigateBack,
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
+                    
+                    if (showLoading) {
+                        LoadingOverlay(message = "Loading Photo Details...")
                     }
+                }
 
-                    is PhotoDetailUiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Error: ${state.message}",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyLarge
+                is PhotoDetailUiState.Success -> {
+                    PhotoDetailContent(
+                        state = state,
+                        onImageClick = {
+                            viewModel.showHdImage(
+                                state.apod.urlHD,
+                                state.apod.url
                             )
-                        }
+                        },
+                        onFavoriteClick = viewModel::toggleFavorite,
+                        onHideHdImage = viewModel::hideHdImage,
+                        hazeState = hazeState,
+                        onNavigateBack = onNavigateBack,
+                        onShare = { viewModel.shareApod() },
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
+
+                is PhotoDetailUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Error: ${state.message}",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
@@ -182,6 +147,7 @@ fun SharedTransitionScope.PhotoDetailContent(
     hazeState: HazeState,
     onHideHdImage: () -> Unit,
     onNavigateBack: () -> Unit,
+    onShare: () -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val apod = state.apod
@@ -223,144 +189,183 @@ fun SharedTransitionScope.PhotoDetailContent(
                 )
             }
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .haze(state = hazeState)
-                .verticalScroll(scrollState, enabled = !isDragging)
+                .hazeSource(state = hazeState)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            // Check if media is video
-            if (apod.isVideo()) {
-                // Video Player - embedded with full-screen support
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp)
-                ) {
-                    CelestisVideoPlayer(
-                        videoUrl = apod.url ?: "",
-                        modifier = Modifier.fillMaxSize(),
-                        onError = { error ->
-                            // Handle video error - could show error state in UI
-                            println("Video playback error: $error")
-                        }
-                    )
-                }
-            } else {
-                // Header Image - 50% of viewport height, clickable for HD
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(400.dp) // Approximately 50% of typical viewport
-                        .clickable(onClick = onImageClick)
-                ) {
-                    SubcomposeAsyncImage(
-                        model = apod.url,
-                        contentDescription = apod.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .sharedElement(
-                                rememberSharedContentState(key = "image-${apod.date}"),
-                                animatedVisibilityScope = animatedVisibilityScope
-                            ),
-                        loading = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(40.dp),
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "Loading image...",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-
-            // Metadata Section
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+                    .fillMaxSize()
+                    .verticalScroll(scrollState, enabled = !isDragging)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        modifier = Modifier.clip(RoundedCornerShape(50)),
-                        color = MaterialTheme.colorScheme.secondaryContainer
+                // Add top padding for the AppBar
+                Spacer(modifier = Modifier.height(72.dp))
+                
+                // Check if media is video
+                if (apod.isVideo()) {
+                    // Video Player - embedded with full-screen support
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp)
                     ) {
-                        Text(
-                            text = apod.date,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        CelestisVideoPlayer(
+                            videoUrl = apod.url ?: "",
+                            modifier = Modifier.fillMaxSize(),
+                            onError = { error ->
+                                // Handle video error - could show error state in UI
+                                println("Video playback error: $error")
+                            }
                         )
                     }
-                    AnimatedFavoriteButton(
-                        onFavoriteClick = onFavoriteClick,
-                        isFavorite = apod.isFavorite
-                    )
+                } else {
+                    // Header Image - 50% of viewport height, clickable for HD
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp) // Approximately 50% of typical viewport
+                            .clickable(onClick = onImageClick)
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = apod.url,
+                            contentDescription = apod.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .sharedElement(
+                                    rememberSharedContentState(key = "image-${apod.date}"),
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                ),
+                            loading = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(40.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = "Loading image...",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Title
-                Text(
-                    text = apod.title ?: "Unknown Title",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Explanation
-                Text(
-                    text = apod.explanation ?: "No description available",
+                // Metadata Section
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp), // Fine-tune internal balance
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        lineBreak = LineBreak.Paragraph,
-                        hyphens = Hyphens.Auto,
-                        lineHeight = 24.sp,
-                        letterSpacing = 0.5.sp
-                    ),
-                    textAlign = TextAlign.Justify,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            modifier = Modifier.clip(RoundedCornerShape(50)),
+                            color = MaterialTheme.colorScheme.secondaryContainer
+                        ) {
+                            Text(
+                                text = apod.date,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                        AnimatedFavoriteButton(
+                            onFavoriteClick = onFavoriteClick,
+                            isFavorite = apod.isFavorite
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Copyright
-                apod.copyright?.let { copyright ->
+                    // Title
                     Text(
-                        text = "© $copyright",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontStyle = FontStyle.Italic,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        text = apod.title ?: "Unknown Title",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
-                }
 
-                // Add some bottom padding so FAB doesn't overlap content
-                Spacer(modifier = Modifier.height(80.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Explanation
+                    Text(
+                        text = apod.explanation ?: "No description available",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp), // Fine-tune internal balance
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            lineBreak = LineBreak.Paragraph,
+                            hyphens = Hyphens.Auto,
+                            lineHeight = 24.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        textAlign = TextAlign.Justify,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Copyright
+                    apod.copyright?.let { copyright ->
+                        Text(
+                            text = "© $copyright",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                        )
+                    }
+
+                    // Add some bottom padding so FAB doesn't overlap content
+                    Spacer(modifier = Modifier.height(80.dp))
+                }
             }
+
+            // Top App Bar overlay
+            ApodTopAppBar(
+                titleContent = {
+                    Text(
+                        text = "PHOTO DETAIL",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onShare) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = Color.White
+                        )
+                    }
+                },
+                hazeState = hazeState
+            )
         }
 
         // HD Image Popup
