@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,8 +61,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.model.isVideo
 import com.example.astrolume.ui.components.CelestisRangePicker
 import com.example.astrolume.ui.components.ShimmerApodGrid
+import com.example.astrolume.ui.components.VideoPlaceholder
+import com.example.astrolume.ui.utils.VideoUrlUtils
 import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import dev.chrisbanes.haze.HazeState
@@ -244,44 +249,94 @@ fun ApodCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-                apod.thumbnailUrl ?: apod.url
+            // Check if it's a video without thumbnail
+            val isVideo = apod.isVideo()
+            val hasNoThumbnail = isVideo && apod.thumbnailUrl == null
+            
+            if (hasNoThumbnail) {
+                // Use VideoPlaceholder for videos without thumbnails
+                VideoPlaceholder(
+                    title = apod.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(1f)
+                )
             } else {
-                apod.url
-            }
+                // For images or videos with thumbnails, use AsyncImage
+                val imageUrl = if (isVideo) {
+                    // Try to get YouTube thumbnail if it's a YouTube video
+                    apod.url?.let { url ->
+                        VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                            VideoUrlUtils.getYouTubeThumbnail(videoId)
+                        }
+                    } ?: apod.thumbnailUrl ?: apod.url
+                } else {
+                    apod.url
+                }
 
-            SubcomposeAsyncImage(
-                model = imageUrl,
-                contentDescription = apod.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .aspectRatio(1f),
-                loading = {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                        )
+                SubcomposeAsyncImage(
+                    model = imageUrl,
+                    contentDescription = apod.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(1f),
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
+                        }
+                    },
+                    error = {
+                        // Fallback to VideoPlaceholder if image fails to load for videos
+                        if (isVideo) {
+                            VideoPlaceholder(
+                                title = apod.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .background(MaterialTheme.colorScheme.errorContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Image Load Failed", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
-                },
-                error = {
+                )
+                
+                // Add play icon overlay for videos
+                if (isVideo) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp)
-                            .background(MaterialTheme.colorScheme.errorContainer),
+                            .align(Alignment.Center)
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("Image Load Failed", style = MaterialTheme.typography.labelSmall)
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                            contentDescription = "Play Video",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
                 }
-            )
+            }
 
             // Dynamic Text Overlay with Scrim
             Box(

@@ -24,3 +24,4 @@ build/
 *.p12
 *.key
 google-services.json
+AGENTS.md

@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.model.isVideo
+import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.LoadingOverlay
 import com.example.astrolume.ui.navigation.ApodTopAppBar
@@ -184,42 +186,61 @@ fun PhotoDetailContent(
                 .haze(state = hazeState)
                 .verticalScroll(scrollState)
         ) {
-            // Header Image - 50% of viewport height, clickable for HD
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp) // Approximately 50% of typical viewport
-                    .clickable(onClick = onImageClick)
-            ) {
-                SubcomposeAsyncImage(
-                    model = apod.url,
-                    contentDescription = apod.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    loading = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally
+            // Check if media is video
+            if (apod.isVideo()) {
+                // Video Player - embedded with full-screen support
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                ) {
+                    CelestisVideoPlayer(
+                        videoUrl = apod.url ?: "",
+                        modifier = Modifier.fillMaxSize(),
+                        onError = { error ->
+                            // Handle video error - could show error state in UI
+                            println("Video playback error: $error")
+                        }
+                    )
+                }
+            } else {
+                // Header Image - 50% of viewport height, clickable for HD
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp) // Approximately 50% of typical viewport
+                        .clickable(onClick = onImageClick)
+                ) {
+                    SubcomposeAsyncImage(
+                        model = apod.url,
+                        contentDescription = apod.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(40.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "Loading image...",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(40.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Loading image...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
 
             // Metadata Section

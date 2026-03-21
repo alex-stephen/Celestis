@@ -78,8 +78,12 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.model.isVideo
+import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
+import com.example.astrolume.ui.components.VideoPlaceholder
 import com.example.astrolume.ui.navigation.ApodTopAppBar
+import com.example.astrolume.ui.utils.VideoUrlUtils
 import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
@@ -163,22 +167,40 @@ fun HomeScreenSuccess(
             modifier = Modifier
                 .fillMaxSize()
                 .haze(state = hazeState)
-                .clickable { onShowHdImage(displayApod.urlHD ?: displayApod.url) }
+                .then(
+                    if (!displayApod.isVideo()) {
+                        Modifier.clickable { onShowHdImage(displayApod.urlHD ?: displayApod.url) }
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
-            // Background Layer: Blurred & Cropped to fill sides
-            AsyncImage(
-                model = displayApod.url,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().blur(40.dp).alpha(0.4f)
-            )
-            // Foreground Layer: Fitted subject - Clickable to show HD
-            AsyncImage(
-                model = displayApod.url,
-                contentDescription = null,
-                contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            // Check if it's a video
+            if (displayApod.isVideo()) {
+                // Show video player for video content
+                CelestisVideoPlayer(
+                    videoUrl = displayApod.url ?: "",
+                    modifier = Modifier.fillMaxSize(),
+                    onError = { error ->
+                        println("Video playback error in HomeScreen: $error")
+                    }
+                )
+            } else {
+                // Background Layer: Blurred & Cropped to fill sides
+                AsyncImage(
+                    model = displayApod.url,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().blur(40.dp).alpha(0.4f)
+                )
+                // Foreground Layer: Fitted subject - Clickable to show HD
+                AsyncImage(
+                    model = displayApod.url,
+                    contentDescription = null,
+                    contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         // TOP UI LAYER
