@@ -86,19 +86,25 @@ fun ApodDrawerSheet(
             )
 
             items.forEach { (screen, icon, label) ->
-                val isSelected = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true
+                val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(if (isSelected) Color.White.copy(0.1f) else Color.Transparent)
+                        .background(if (isInHierarchy) Color.White.copy(0.1f) else Color.Transparent)
                         .clickable {
                             scope.launch { drawerState.close() }
-                            navController.navigate(screen) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (isInHierarchy) {
+                                // Already in this section's hierarchy - pop back to root
+                                navController.popBackStack(route = screen, inclusive = false)
+                            } else {
+                                // Navigate to new section
+                                navController.navigate(screen) {
+                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
                         .padding(16.dp),
@@ -107,7 +113,7 @@ fun ApodDrawerSheet(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isSelected) Color.Cyan else Color.White
+                        tint = if (isInHierarchy) Color.Cyan else Color.White
                     )
                     Spacer(Modifier.width(16.dp))
                     Text(

@@ -1,14 +1,19 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -28,6 +33,7 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -35,11 +41,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
@@ -49,21 +58,26 @@ import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.LoadingOverlay
 import com.example.astrolume.ui.navigation.ApodTopAppBar
+import com.example.astrolume.ui.utils.HapticFeedbackType
+import com.example.astrolume.ui.utils.createHapticFeedback
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
+import kotlin.math.roundToInt
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun PhotoDetailScreen(
+fun SharedTransitionScope.PhotoDetailScreen(
     date: String,
     viewModel: PhotoDetailViewModel,
     windowSizeClass: WindowSizeClass,
     onNavigateBack: () -> Unit,
     onShare: () -> Unit = {},
-    hazeState: HazeState
+    hazeState: HazeState,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -147,7 +161,9 @@ fun PhotoDetailScreen(
                                 )
                             },
                             onHideHdImage = viewModel::hideHdImage,
-                            hazeState = hazeState
+                            hazeState = hazeState,
+                            onNavigateBack = onNavigateBack,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
 
@@ -169,22 +185,60 @@ fun PhotoDetailScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun PhotoDetailContent(
+fun SharedTransitionScope.PhotoDetailContent(
     state: PhotoDetailUiState.Success,
     onImageClick: () -> Unit,
     hazeState: HazeState,
     onHideHdImage: () -> Unit,
+    onNavigateBack: () -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val apod = state.apod
     val scrollState = rememberScrollState()
+    
+    // Pull-to-dismiss state
+    var offsetY by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    val dismissThreshold = 200f
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .offset { IntOffset(0, offsetY.roundToInt()) }
+            .graphicsLayer {
+                alpha = 1f - (offsetY / 1000f).coerceIn(0f, 0.5f)
+            }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        if (offsetY > dismissThreshold) {
+                            onNavigateBack()
+                        } else {
+                            offsetY = 0f
+                        }
+                        isDragging = false
+                    },
+                    onDragCancel = {
+                        offsetY = 0f
+                        isDragging = false
+                    },
+                    onVerticalDrag = { _, dragAmount ->
+                        // Only allow downward drag
+                        if (scrollState.value == 0 && dragAmount > 0) {
+                            offsetY = (offsetY + dragAmount).coerceAtLeast(0f)
+                        }
+                    }
+                )
+            }
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .haze(state = hazeState)
-                .verticalScroll(scrollState)
+                .verticalScroll(scrollState, enabled = !isDragging)
         ) {
             // Check if media is video
             if (apod.isVideo()) {
@@ -215,7 +269,12 @@ fun PhotoDetailContent(
                         model = apod.url,
                         contentDescription = apod.title,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .sharedElement(
+                                rememberSharedContentState(key = "image-${apod.date}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            ),
                         loading = {
                             Box(
                                 modifier = Modifier
@@ -321,8 +380,13 @@ fun FavoriteActionButton(
     hazeState: HazeState,
     enabled: Boolean = true
 ) {
+    val haptic = remember { createHapticFeedback() }
+    
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LIGHT_IMPACT)
+            onClick()
+        },
         enabled = enabled,
         modifier = Modifier
             .size(56.dp)

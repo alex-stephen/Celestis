@@ -1,5 +1,8 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -70,14 +73,15 @@ import com.example.astrolume.ui.viewModels.DiscoverUiState
 import com.example.astrolume.ui.viewModels.DiscoverViewModel
 import dev.chrisbanes.haze.HazeState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun DiscoverScreen(
+fun SharedTransitionScope.DiscoverScreen(
     viewModel: DiscoverViewModel,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -111,7 +115,8 @@ fun DiscoverScreen(
                     state = state,
                     windowSizeClass = windowSizeClass,
                     viewModel = viewModel,
-                    onPhotoDetailClick = onPhotoDetailClick
+                    onPhotoDetailClick = onPhotoDetailClick,
+                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
         }
@@ -126,13 +131,14 @@ fun DiscoverScreen(
         )
     }
 }
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun DiscoverScreenGrid(
+fun SharedTransitionScope.DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
     viewModel: DiscoverViewModel,
-    onPhotoDetailClick: (ApodResponse) -> Unit
+    onPhotoDetailClick: (ApodResponse) -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
 
     val gridCols = when (windowSizeClass.widthSizeClass) {
@@ -146,7 +152,7 @@ fun DiscoverScreenGrid(
             // MODE A: Discovery Feed (Standard List)
             LazyVerticalGrid(columns = GridCells.Fixed(gridCols)) {
                 items(state.rangeApod, key = { it.date }) { apod ->
-                    ApodCard(apod, onPhotoDetailClick)
+                    ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
                 }
             }
         } else {
@@ -173,7 +179,7 @@ fun DiscoverScreenGrid(
                     items = searchState.items,
                     key = { _, apod -> apod.date }
                 ) { index, apod ->
-                    ApodCard(apod, onPhotoDetailClick)
+                    ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
                     
                     // Trigger load more when near end
                     val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
@@ -234,14 +240,18 @@ fun DiscoverScreenGrid(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun ApodCard(
+fun SharedTransitionScope.ApodCard(
     apod: ApodResponse,
-    onPhotoDetailClick: (ApodResponse) -> Unit
+    onPhotoDetailClick: (ApodResponse) -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     Card(
         onClick = { onPhotoDetailClick(apod) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .padding(1.dp)
+            .fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -282,7 +292,11 @@ fun ApodCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .aspectRatio(1f),
+                        .aspectRatio(1f)
+                        .sharedElement(
+                            rememberSharedContentState(key = "image-${apod.date}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        ),
                     loading = {
                         Box(
                             modifier = Modifier.fillMaxSize(),
