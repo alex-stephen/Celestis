@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -150,7 +151,11 @@ fun SharedTransitionScope.DiscoverScreenGrid(
     Column(modifier = Modifier.fillMaxSize()) {
         if (state.searchQuery.isEmpty()) {
             // MODE A: Discovery Feed (Standard List)
-            LazyVerticalGrid(columns = GridCells.Fixed(gridCols)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(gridCols),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            )
+            {
                 items(state.rangeApod, key = { it.date }) { apod ->
                     ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
                 }
@@ -159,7 +164,10 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             // MODE B: Search Results with Pagination
             val searchState = state.searchResults
             
-            LazyVerticalGrid(columns = GridCells.Fixed(gridCols)) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(gridCols),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
                 // Show initial loading
                 if (searchState.isLoading && searchState.items.isEmpty()) {
                     item(span = { GridItemSpan(gridCols) }) {

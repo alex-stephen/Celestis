@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.ImageLoader
 import coil3.PlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.utils.ImagePrefetcher
@@ -92,7 +94,6 @@ class HomeViewModel(
      */
     fun showNextRandom() {
         if (randomQueue.isEmpty()) {
-            // Emergency fallback - should rarely happen with 20 capacity
             fetchEmergencySingle()
             return
         }
@@ -100,6 +101,17 @@ class HomeViewModel(
         val next = randomQueue.removeFirst()
         _randomApod.value = next
         _isShowingRandom.value = true
+
+        next.urlHD?.let { hdUrl ->
+            viewModelScope.launch(Dispatchers.IO) {
+                val request = ImageRequest.Builder(context)
+                    .data(hdUrl)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .build()
+                imageLoader.enqueue(request)
+            }
+        }
 
         // Check if we need to top up the tank
         if (randomQueue.size <= REFILL_THRESHOLD) {

@@ -40,7 +40,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.example.astrolume.ui.utils.CommonBackHandler
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -53,6 +54,7 @@ fun HdImagePopup(
     CommonBackHandler(enabled = true, onBack = onDismiss)
 
     val scope = rememberCoroutineScope()
+    var isImageLoading by remember { mutableStateOf(true) }
 
     // Transformation state using Animatable for smooth physics
     val scale = remember { Animatable(1f) }
@@ -97,10 +99,13 @@ fun HdImagePopup(
                 )
             }
     ) {
-        SubcomposeAsyncImage(
+        AsyncImage(
             model = imageUrl,
             contentDescription = "HD Image",
             contentScale = ContentScale.Fit,
+            onState = { state ->
+                isImageLoading = state is AsyncImagePainter.State.Loading
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
@@ -325,8 +330,10 @@ fun HdImagePopup(
                         }
                     )
                 },
-            loading = { HdImageLoadingIndicator() }
         )
+        if (isImageLoading) {
+            HdImageLoadingIndicator(Modifier.align(Alignment.Center))
+        }
 
         // Close button
         IconButton(
