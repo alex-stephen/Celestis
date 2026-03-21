@@ -82,7 +82,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
     }
 
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
         Box(
@@ -104,21 +105,27 @@ fun SharedTransitionScope.PhotoDetailScreen(
                 }
 
                 is PhotoDetailUiState.Success -> {
-                    PhotoDetailContent(
-                        state = state,
-                        onImageClick = {
-                            viewModel.showHdImage(
-                                state.apod.urlHD,
-                                state.apod.url
-                            )
-                        },
-                        onFavoriteClick = viewModel::toggleFavorite,
-                        onHideHdImage = viewModel::hideHdImage,
-                        hazeState = hazeState,
-                        onNavigateBack = onNavigateBack,
-                        onShare = { viewModel.shareApod() },
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hazeSource(state = hazeState)
+                    ) {
+                        PhotoDetailContent(
+                            state = state,
+                            onImageClick = {
+                                viewModel.showHdImage(
+                                    state.apod.urlHD,
+                                    state.apod.url
+                                )
+                            },
+                            onFavoriteClick = viewModel::toggleFavorite,
+                            onHideHdImage = viewModel::hideHdImage,
+                            hazeState = hazeState,
+                            onNavigateBack = onNavigateBack,
+                            onShare = { viewModel.shareApod() },
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
                 }
 
                 is PhotoDetailUiState.Error -> {
@@ -134,6 +141,35 @@ fun SharedTransitionScope.PhotoDetailScreen(
                     }
                 }
             }
+            // Top App Bar overlay
+            ApodTopAppBar(
+                titleContent = {
+                    Text(
+                        text = "PHOTO DETAIL",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onShare) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = Color.White
+                        )
+                    }
+                },
+                hazeState = hazeState
+            )
         }
     }
 }
@@ -159,6 +195,10 @@ fun SharedTransitionScope.PhotoDetailContent(
     val dismissThreshold = 200f
 
     Box(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Box(
         modifier = Modifier
             .fillMaxSize()
             .offset { IntOffset(0, offsetY.roundToInt()) }
@@ -188,20 +228,14 @@ fun SharedTransitionScope.PhotoDetailContent(
                     }
                 )
             }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .hazeSource(state = hazeState)
-                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState, enabled = !isDragging)
             ) {
-                // Add top padding for the AppBar
-                Spacer(modifier = Modifier.height(72.dp))
+                // Add top padding for the AppBar ContentPadding
+                Spacer(modifier = Modifier.height(65.dp))
                 
                 // Check if media is video
                 if (apod.isVideo()) {
@@ -336,36 +370,6 @@ fun SharedTransitionScope.PhotoDetailContent(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-
-            // Top App Bar overlay
-            ApodTopAppBar(
-                titleContent = {
-                    Text(
-                        text = "PHOTO DETAIL",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onShare) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = Color.White
-                        )
-                    }
-                },
-                hazeState = hazeState
-            )
         }
 
         // HD Image Popup

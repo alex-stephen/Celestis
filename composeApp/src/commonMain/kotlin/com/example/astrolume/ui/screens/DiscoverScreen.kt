@@ -55,6 +55,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -434,14 +436,24 @@ fun DiscoverSearchAppBar(
                     blurRadius = 20.dp,
                     tint = HazeTint(Color.White.copy(alpha = 0.05f)),
                 )
-            ),
+            )
+            .drawBehind {
+                val strokeWidthPx = 1.dp.toPx()
+                val verticalOffset = size.height - strokeWidthPx / 2
+                drawLine(
+                    color = Color.White.copy(alpha = 0.15f),
+                    start = Offset(0f, verticalOffset),
+                    end = Offset(size.width, verticalOffset),
+                    strokeWidth = strokeWidthPx
+                )
+            },
         color = Color.Transparent,
         tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(65.dp)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -461,7 +473,7 @@ fun DiscoverSearchAppBar(
                     .padding(horizontal = 8.dp)
                     .height(44.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)),
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.50f)),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),

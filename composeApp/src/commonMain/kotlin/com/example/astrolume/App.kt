@@ -63,7 +63,7 @@ fun App(
         label = "BottomBarOffset"
     )
 
-    val bottomNavHeight = 80.dp // Standard NavigationBar height
+    val bottomNavHeight = 70.dp // Standard NavigationBar height
     val animatedBottomPadding by animateDpAsState(
         targetValue = if (bottomBarState.isVisible && isCompact) bottomNavHeight else 0.dp,
         animationSpec = tween(300)
