@@ -72,11 +72,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
-import coil3.compose.LocalPlatformContext
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.model.isVideo
 import com.example.astrolume.ui.components.CelestisVideoPlayer
@@ -148,27 +144,13 @@ fun HomeScreenSuccess(
     onFavoriteToggle: (String, Boolean) -> Unit,
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
-    onShowHdImage: (String?) -> Unit = {},
+    onShowHdImage: (String?, String?) -> Unit = { _, _ -> },
     onHideHdImage: () -> Unit = {},
     bottomPadding: Dp
 ) {
-    val context = LocalPlatformContext.current
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     var isExpanded by remember { mutableStateOf(false) }
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-
-    // PREDICTIVE HD PREFETCHING: Preload HD image when viewing an APOD
-    LaunchedEffect(displayApod.urlHD) {
-        if (displayApod.urlHD != null) {
-            val imageLoader = SingletonImageLoader.get(context)
-            val request = ImageRequest.Builder(context)
-                .data(displayApod.urlHD)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .build()
-            imageLoader.enqueue(request)
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -178,7 +160,7 @@ fun HomeScreenSuccess(
                 .haze(state = hazeState)
                 .then(
                     if (!displayApod.isVideo()) {
-                        Modifier.clickable { onShowHdImage(displayApod.urlHD ?: displayApod.url) }
+                        Modifier.clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
                     } else {
                         Modifier
                     }

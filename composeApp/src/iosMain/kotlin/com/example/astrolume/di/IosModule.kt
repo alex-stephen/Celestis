@@ -1,20 +1,19 @@
 package com.example.astrolume.di
 
 import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import com.example.astrolume.AndroidPlatform
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import com.example.astrolume.IosPlatform
 import com.example.astrolume.Platform
 import com.example.astrolume.database.AppDatabase
 import com.example.astrolume.network.NetworkMonitor
-import com.example.astrolume.ui.utils.AndroidShareManager
+import com.example.astrolume.ui.utils.IosShareManager
 import com.example.astrolume.ui.utils.ShareManager
 import org.koin.dsl.module
 
-val androidModule = module {
+val iosModule = module {
     single<SqlDriver> {
-        AndroidSqliteDriver(
+        NativeSqliteDriver(
             schema = AppDatabase.Schema,
-            context = get(),
             name = "astrolume.db"
         )
     }
@@ -23,7 +22,7 @@ val androidModule = module {
         AppDatabase(driver = get())
     }
 
-    single<Platform> { AndroidPlatform(get()) }
-    single<ShareManager> { AndroidShareManager(get<Platform>().context) }
-    single { NetworkMonitor(get()) }
+    single<Platform> { IosPlatform() }
+    single<ShareManager> { IosShareManager() }
+    single { NetworkMonitor() }
 }

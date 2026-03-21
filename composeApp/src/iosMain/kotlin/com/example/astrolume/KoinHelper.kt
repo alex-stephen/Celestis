@@ -1,6 +1,7 @@
 package com.example.astrolume
 
 import com.example.astrolume.di.commonModule
+import com.example.astrolume.di.iosModule
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.context.startKoin

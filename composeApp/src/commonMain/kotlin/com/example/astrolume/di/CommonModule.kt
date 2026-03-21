@@ -16,6 +16,7 @@ import com.example.astrolume.ui.viewModels.FavoriteViewModel
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
 import okio.FileSystem
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -28,11 +29,25 @@ val commonModule = module {
 
     single { ApodRepository(get(), get(), get(), get())}
 
+    // Separate HttpClient for Coil with 6-second timeout for HD image downloads
+    single(qualifier = org.koin.core.qualifier.named("coilHttpClient")) {
+        HttpClient {
+            install(HttpTimeout) {
+                requestTimeoutMillis = 6_000 // 6 second timeout for HD downloads
+                connectTimeoutMillis = 6_000
+                socketTimeoutMillis = 6_000
+            }
+        }
+    }
+
     single {
         ImageLoader.Builder(get<Platform>().context)
             .components {
                 // Add Ktor as the network engine for Coil
-                add(KtorNetworkFetcherFactory(get<HttpClient>()))
+                // Uses dedicated HttpClient with 6-second timeout
+                add(KtorNetworkFetcherFactory(
+                    httpClient = { get<HttpClient>(qualifier = org.koin.core.qualifier.named("coilHttpClient")) }
+                ))
             }
             .memoryCache {
                 MemoryCache.Builder()
@@ -58,7 +73,7 @@ val commonModule = module {
 
     viewModel { FavoriteViewModel(get()) }
 
-    viewModel { HomeViewModel(get(), get(), get<Platform>().context, get()) }
+    viewModel { HomeViewModel(get(), get(), get<Platform>().context, get(), get()) }
 
-    viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context, get()) }
+    viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context, get(), get()) }
 }

@@ -143,7 +143,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
                             state = state,
                             onImageClick = {
                                 viewModel.showHdImage(
-                                    state.apod.urlHD ?: state.apod.url
+                                    state.apod.urlHD,
+                                    state.apod.url
                                 )
                             },
                             onFavoriteClick = viewModel::toggleFavorite,
