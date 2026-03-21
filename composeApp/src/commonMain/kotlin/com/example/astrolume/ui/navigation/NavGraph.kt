@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -30,7 +31,8 @@ fun NavGraph(
     windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
     onOpenDrawer: () -> Unit,
-    hazeState: HazeState
+    hazeState: HazeState,
+    bottomPadding: Dp
 ) {
     SharedTransitionLayout {
         NavHost(
@@ -45,7 +47,8 @@ fun NavGraph(
                     viewModel = homeViewModel,
                     windowSizeClass = windowSizeClass,
                     onOpenDrawer = onOpenDrawer,
-                    hazeState = hazeState
+                    hazeState = hazeState,
+                    bottomPadding = bottomPadding
                 )
             }
 

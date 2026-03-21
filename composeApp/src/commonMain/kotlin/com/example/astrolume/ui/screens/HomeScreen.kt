@@ -16,7 +16,6 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +68,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -97,7 +97,8 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
-    hazeState: HazeState
+    hazeState: HazeState,
+    bottomPadding: Dp = 0.dp
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isShowingRandom by viewModel.isShowingRandom.collectAsStateWithLifecycle()
@@ -120,11 +121,16 @@ fun HomeScreen(
                         onOpenDrawer = onOpenDrawer,
                         hazeState = hazeState,
                         onShowHdImage = viewModel::showHdImage,
-                        onHideHdImage = viewModel::hideHdImage
+                        onHideHdImage = viewModel::hideHdImage,
+                        bottomPadding = bottomPadding
                     )
                 }
+
                 is HomeUiState.Loading -> HomeScreenLoading()
-                is HomeUiState.Error -> HomeScreenError(state, onRefresh = viewModel::showNextRandom)
+                is HomeUiState.Error -> HomeScreenError(
+                    state,
+                    onRefresh = viewModel::showNextRandom
+                )
             }
         }
     }
@@ -143,7 +149,8 @@ fun HomeScreenSuccess(
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
     onShowHdImage: (String?) -> Unit = {},
-    onHideHdImage: () -> Unit = {}
+    onHideHdImage: () -> Unit = {},
+    bottomPadding: Dp
 ) {
     val context = LocalPlatformContext.current
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
@@ -307,12 +314,13 @@ fun HomeScreenSuccess(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
+                .padding(bottom = bottomPadding)
                 .animateContentSize()
                 .then(
                     if (isLandscape) {
                         Modifier.width(if (isExpanded) 500.dp else 320.dp).height(250.dp)
                     } else {
-                        Modifier.fillMaxWidth().height(if (isExpanded) 400.dp else 160.dp)
+                        Modifier.fillMaxWidth().height(if (isExpanded) 400.dp else 120.dp)
                     }
                 )
                 .clip(RoundedCornerShape(28.dp))
@@ -371,7 +379,6 @@ fun CardContent(
                             tint = null
                         )
                     ),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
             ) {
                 Text(
                     text = displayApod.date,
