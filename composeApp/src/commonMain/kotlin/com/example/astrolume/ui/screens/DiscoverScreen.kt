@@ -1,7 +1,7 @@
 package com.example.astrolume.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
@@ -120,9 +121,7 @@ fun DiscoverScreen(
         )
     }
 }
-
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DiscoverScreenGrid(
     state: DiscoverUiState.Success,
@@ -140,7 +139,7 @@ fun DiscoverScreenGrid(
     Column(modifier = Modifier.fillMaxSize()) {
         if (state.searchQuery.isEmpty()) {
             // MODE A: Discovery Feed (Standard List)
-            LazyVerticalGrid(columns = GridCells.Fixed(2)) {
+            LazyVerticalGrid(columns = GridCells.Fixed(gridCols)) {
                 items(state.rangeApod, key = { it.date }) { apod ->
                     ApodCard(apod, onPhotoDetailClick)
                 }
@@ -233,30 +232,31 @@ fun DiscoverScreenGrid(
 @Composable
 fun ApodCard(
     apod: ApodResponse,
-    photoDetialClick: (ApodResponse) -> Unit
+    onPhotoDetailClick: (ApodResponse) -> Unit
 ) {
     Card(
-        onClick = {photoDetialClick(apod)},
-        modifier = Modifier
-            .padding(4.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.2f), MaterialTheme.shapes.medium),
-        elevation = CardDefaults.cardElevation(4.dp),
+        onClick = { onPhotoDetailClick(apod) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-            apod.thumbnailUrl ?: apod.url
-        } else {
-            apod.url
-        }
         Box(modifier = Modifier.fillMaxSize()) {
+            val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
+                apod.thumbnailUrl ?: apod.url
+            } else {
+                apod.url
+            }
+
             SubcomposeAsyncImage(
                 model = imageUrl,
                 contentDescription = apod.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
                     .aspectRatio(1f),
                 loading = {
                     Box(
@@ -264,33 +264,55 @@ fun ApodCard(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
+                    }
+                },
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                            .background(MaterialTheme.colorScheme.errorContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Image Load Failed", style = MaterialTheme.typography.labelSmall)
                     }
                 }
             )
 
+            // Dynamic Text Overlay with Scrim
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.Black.copy(alpha = 0.8f) // Fade to dark at the bottom
-                            )
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+                            startY = 0f // Start gradient at the very top of the box for smooth fade
                         )
                     )
-                    .padding(horizontal = 8.dp, vertical = 12.dp)
+                    .padding(8.dp)
             ) {
-                Text(
-                    text = apod.date, // Format this string nicely if needed
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.align(Alignment.BottomStart)
-                )
+                Column {
+                    apod.title?.let {
+                        Text(
+                            text = it,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = apod.date,
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }

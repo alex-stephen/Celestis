@@ -41,49 +41,51 @@ class ApodRepository(
             }
     }
 
-    suspend fun refreshLatest() {
+    suspend fun refreshLatest() = withContext(Dispatchers.IO) {
         try {
             val remote = api.getApodFromServer(null)
+            // PRE-CACHE: Start fetching the image as soon as we have metadata
+            precacheImage(remote.url)
             saveToLocal(remote)
         } catch (e: Exception) {
             // Log to Sentry/Crashlytics, but don't crash the Flow
         }
     }
 
-    suspend fun fetchApod(date: String? = null): ApodEntity {
+    suspend fun fetchApod(date: String? = null): ApodEntity = withContext(Dispatchers.IO) {
         // 1. Local check
         if (date != null) {
             val cached = queries.getApodByDate(date).executeAsOneOrNull()
-            if (cached != null) return cached
+            if (cached != null) return@withContext cached
         }
 
-        // 2. Network fetch (Now using our optimized Proxy Server)
+        // 2. Network fetch
         val remote = api.getApodFromServer(date)
 
-        // 3. Persist to SQL (No UUID generation needed!)
+        // 3. Persist to SQL
         saveToLocal(remote)
 
-        return queries.getApodByDate(remote.date).executeAsOne()
+        queries.getApodByDate(remote.date).executeAsOne()
     }
 
     /**
      * Gets random APODs. We save them locally as we get them to
      * populate the user's "Discovery" cache.
      */
-    suspend fun fetchRandom(count: Int): List<ApodResponse> {
+    suspend fun fetchRandom(count: Int): List<ApodResponse> = withContext(Dispatchers.IO) {
         val remotes = api.getRandomApods(count)
         database.transaction {
             remotes.forEach { innerSaveToLocal(it) }
         }
         // Cache images after DB is confirmed
         remotes.forEach { precacheImage(it.url) }
-        return remotes
+        return@withContext remotes
     }
 
     /**
      * Fills a specific date range. Perfect for a "Calendar" view.
      */
-    suspend fun fetchRange(start: String, end: String): List<ApodResponse> {
+    suspend fun fetchRange(start: String, end: String): List<ApodResponse> = withContext(Dispatchers.IO) {
         val remotes = api.getApodRange(start, end)
 
         database.transaction {
@@ -91,7 +93,7 @@ class ApodRepository(
                 innerSaveToLocal(apod)
             }
         }
-        return remotes
+        return@withContext remotes
     }
 
     /**
@@ -177,7 +179,7 @@ class ApodRepository(
      * Toggle favorite status in SQLDelight.
      * This is a local-only operation that makes the UI feel instant.
      */
-    suspend fun toggleFavorite(date: String, isFavorite: Boolean, apod: ApodResponse? = null) {
+    suspend fun toggleFavorite(date: String, isFavorite: Boolean, apod: ApodResponse? = null) = withContext(Dispatchers.IO) {
         database.transaction {
             // 1. Check if it exists
             val existing = queries.getApodByDate(date).executeAsOneOrNull()
