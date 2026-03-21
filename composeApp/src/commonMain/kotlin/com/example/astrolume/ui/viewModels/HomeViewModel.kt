@@ -8,6 +8,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.network.NetworkMonitor
 import com.example.astrolume.ui.utils.ImagePrefetcher
 import com.example.astrolume.ui.utils.LinkGenerator
 import com.example.astrolume.ui.utils.ShareManager
@@ -36,7 +37,8 @@ class HomeViewModel(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
     private val context: PlatformContext,
-    private val shareManager: ShareManager
+    private val shareManager: ShareManager,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val todayApodFlow = repository.observeLatestApod()
@@ -102,7 +104,24 @@ class HomeViewModel(
         _randomApod.value = next
         _isShowingRandom.value = true
 
-        next.urlHD?.let { hdUrl ->
+        // Network-aware HD prefetching: Only prefetch HD on Wi-Fi when not in low data mode
+        prefetchHdImage(next.urlHD)
+
+        // Check if we need to top up the tank
+        if (randomQueue.size <= REFILL_THRESHOLD) {
+            refillQueue()
+        }
+    }
+    
+    /**
+     * Prefetches HD image only when on Wi-Fi and not in low data mode.
+     * This ensures we don't waste cellular data or violate user preferences.
+     */
+    private fun prefetchHdImage(hdUrl: String?) {
+        hdUrl ?: return
+        
+        // Only prefetch HD images on Wi-Fi when not in low data mode
+        if (networkMonitor.isWifiActive && !networkMonitor.isLowDataMode) {
             viewModelScope.launch(Dispatchers.IO) {
                 val request = ImageRequest.Builder(context)
                     .data(hdUrl)
@@ -111,11 +130,6 @@ class HomeViewModel(
                     .build()
                 imageLoader.enqueue(request)
             }
-        }
-
-        // Check if we need to top up the tank
-        if (randomQueue.size <= REFILL_THRESHOLD) {
-            refillQueue()
         }
     }
 
@@ -195,8 +209,17 @@ class HomeViewModel(
         }
     }
 
-    fun showHdImage(url: String?) {
-        _selectedHdUrl.value = url
+    /**
+     * Shows HD image if on Wi-Fi, otherwise falls back to standard resolution.
+     * This prevents wasting cellular data on large HD downloads.
+     */
+    fun showHdImage(hdUrl: String?, standardUrl: String?) {
+        _selectedHdUrl.value = when {
+            // If on Wi-Fi and not in low data mode, use HD
+            networkMonitor.isWifiActive && !networkMonitor.isLowDataMode -> hdUrl ?: standardUrl
+            // Otherwise, use standard resolution
+            else -> standardUrl
+        }
     }
 
     fun hideHdImage() {

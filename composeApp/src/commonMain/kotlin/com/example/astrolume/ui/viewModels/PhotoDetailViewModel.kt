@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.data.toResponse
 import com.example.astrolume.model.ApodResponse
+import com.example.astrolume.network.NetworkMonitor
 import com.example.astrolume.ui.utils.ImagePrefetcher
 import com.example.astrolume.ui.utils.LinkGenerator
 import com.example.astrolume.ui.utils.ShareManager
@@ -30,7 +31,8 @@ class PhotoDetailViewModel(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
     private val context: PlatformContext,
-    private val shareManager: ShareManager
+    private val shareManager: ShareManager,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PhotoDetailUiState>(PhotoDetailUiState.Loading)
@@ -72,9 +74,19 @@ class PhotoDetailViewModel(
         }
     }
 
-    fun showHdImage(url: String?) {
+    /**
+     * Shows HD image if on Wi-Fi, otherwise falls back to standard resolution.
+     * This prevents wasting cellular data on large HD downloads.
+     */
+    fun showHdImage(hdUrl: String?, standardUrl: String?) {
         val currentState = _uiState.value as? PhotoDetailUiState.Success ?: return
-        _uiState.value = currentState.copy(selectedHdUrl = url)
+        val selectedUrl = when {
+            // If on Wi-Fi and not in low data mode, use HD
+            networkMonitor.isWifiActive && !networkMonitor.isLowDataMode -> hdUrl ?: standardUrl
+            // Otherwise, use standard resolution
+            else -> standardUrl
+        }
+        _uiState.value = currentState.copy(selectedHdUrl = selectedUrl)
     }
 
     fun hideHdImage() {
