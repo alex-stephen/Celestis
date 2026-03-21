@@ -1,5 +1,7 @@
 package com.example.astrolume.ui.navigation
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,6 +25,7 @@ import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import org.koin.compose.viewmodel.koinViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NavGraph(
     navController: NavHostController,
@@ -31,34 +34,36 @@ fun NavGraph(
     onOpenDrawer: () -> Unit,
     hazeState: HazeState
 ) {
-    NavHost(
-        navController = navController,
+    SharedTransitionLayout {
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Home,
+            modifier = modifier
+        ) {
+            composable<Screen.Home> {
+                val homeViewModel: HomeViewModel = koinViewModel()
 
-        startDestination = Screen.Home,
-        modifier = modifier
-    ) {
-        composable<Screen.Home> {
-            val homeViewModel: HomeViewModel = koinViewModel()
+                HomeScreen(
+                    viewModel = homeViewModel,
+                    windowSizeClass = windowSizeClass,
+                    onOpenDrawer = onOpenDrawer,
+                    hazeState = hazeState
+                )
+            }
 
-            HomeScreen(
-                viewModel = homeViewModel,
-                windowSizeClass = windowSizeClass,
-                onOpenDrawer = onOpenDrawer,
-                hazeState = hazeState
-            )
-        }
-
-        composable<Screen.Discover> {
-            val viewModel: DiscoverViewModel = koinViewModel()
-            DiscoverScreen(
-                viewModel,
-                windowSizeClass = windowSizeClass,
-                onOpenDrawer = onOpenDrawer,
-                onPhotoDetailClick = {
-                    navController.navigate(Screen.PhotoDetail(it.date))
-                },
-                hazeState = hazeState)
-        }
+            composable<Screen.Discover> {
+                val viewModel: DiscoverViewModel = koinViewModel()
+                DiscoverScreen(
+                    viewModel,
+                    windowSizeClass = windowSizeClass,
+                    onOpenDrawer = onOpenDrawer,
+                    onPhotoDetailClick = {
+                        navController.navigate(Screen.PhotoDetail(it.date))
+                    },
+                    hazeState = hazeState,
+                    animatedVisibilityScope = this
+                )
+            }
 
         composable<Screen.Favorites> {
             val viewModel: FavoriteViewModel = koinViewModel()
@@ -69,36 +74,31 @@ fun NavGraph(
                 onPhotoDetailClick = {
                     navController.navigate(Screen.PhotoDetail(it.date))
                 },
-                hazeState = hazeState
+                hazeState = hazeState,
+                animatedVisibilityScope = this
             )
         }
 
-        composable<Screen.PhotoDetail>(
-            enterTransition = {
-                fadeIn(animationSpec = tween(300)) +
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(300)
-                )
-            },
-            exitTransition = {
-                fadeOut(animationSpec = tween(300)) +
-                slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(300)
+            composable<Screen.PhotoDetail>(
+                enterTransition = {
+                    fadeIn(animationSpec = tween(400))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(400))
+                }
+            ) { backStackEntry ->
+                val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
+                val viewModel: PhotoDetailViewModel = koinViewModel()
+                PhotoDetailScreen(
+                    date = photoDetail.date,
+                    viewModel = viewModel,
+                    windowSizeClass = windowSizeClass,
+                    onNavigateBack = { navController.navigateUp() },
+                    onShare = { /* TODO: Implement share */ },
+                    hazeState = hazeState,
+                    animatedVisibilityScope = this
                 )
             }
-        ) { backStackEntry ->
-            val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
-            val viewModel: PhotoDetailViewModel = koinViewModel()
-            PhotoDetailScreen(
-                date = photoDetail.date,
-                viewModel = viewModel,
-                windowSizeClass = windowSizeClass,
-                onNavigateBack = { navController.navigateUp() },
-                onShare = { /* TODO: Implement share */ },
-                hazeState = hazeState
-            )
         }
     }
 }

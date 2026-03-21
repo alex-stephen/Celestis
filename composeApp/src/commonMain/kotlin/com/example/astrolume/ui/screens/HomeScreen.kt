@@ -83,7 +83,9 @@ import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.VideoPlaceholder
 import com.example.astrolume.ui.navigation.ApodTopAppBar
+import com.example.astrolume.ui.utils.HapticFeedbackType
 import com.example.astrolume.ui.utils.VideoUrlUtils
+import com.example.astrolume.ui.utils.createHapticFeedback
 import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
@@ -449,6 +451,7 @@ fun AnimatedFavoriteButton(
 ) {
     var isAnimatingRainbow by remember { mutableStateOf(false) }
     val wasFavorite = remember { mutableStateOf(isFavorite) }
+    val haptic = remember { createHapticFeedback() }
 
     // Trigger the animation whenever the user likes the photo
     LaunchedEffect(isFavorite) {
@@ -457,6 +460,7 @@ fun AnimatedFavoriteButton(
             delay(500)
             isAnimatingRainbow = false
         }
+        wasFavorite.value = isFavorite
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "RainbowTransition")
@@ -479,7 +483,10 @@ fun AnimatedFavoriteButton(
         else -> Color.White
     }
 
-    IconButton(onClick = onFavoriteClick) {
+    IconButton(onClick = {
+        haptic.performHapticFeedback(HapticFeedbackType.LIGHT_IMPACT)
+        onFavoriteClick()
+    }) {
         Icon(
             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
             contentDescription = "Favorite",
