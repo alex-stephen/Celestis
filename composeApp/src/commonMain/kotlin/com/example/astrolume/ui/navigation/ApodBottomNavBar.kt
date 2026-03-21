@@ -1,13 +1,7 @@
 package com.example.astrolume.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.TravelExplore
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -49,39 +43,37 @@ fun ApodBottomNavBar(
                     tint = HazeTint.Unspecified, // Subtle tint for depth
                 )
             )
-            .drawBehind { 
+            .drawBehind {
                 val strokeWidthPx = 1.dp.toPx()
-                val verticalOffset = size.height - strokeWidthPx / 2
+                val verticalOffset = strokeWidthPx / 2
+
                 drawLine(
                     color = Color.White.copy(alpha = 0.15f),
                     start = Offset(0f, verticalOffset),
                     end = Offset(size.width, verticalOffset),
                     strokeWidth = strokeWidthPx
                 )
-            },
+            }
+            .height(90.dp),
         containerColor = Color.Transparent,
         tonalElevation = 0.dp
     ) {
-        val items = listOf(
-            Triple(Screen.Home, Icons.Default.Home, "Home"),
-            Triple(Screen.Discover, Icons.Default.TravelExplore, "Discover"),
-            Triple(Screen.Favorites, Icons.Default.Favorite, "Saved")
-        )
 
-        items.forEach { (screen, icon, label) ->
-            val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true
-            
-            NavigationBarItem(
-                selected = isInHierarchy,
-                enabled = isEnabled,
+        NavItem.entries.forEach { item ->
+            val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(item.screen::class) } == true
+            val isSelected = currentDestination?.hasRoute(item.screen::class) == true
+            CustomNavItem(
+                selected = isSelected,
+                icon = item.icon,
+                label = item.label,
                 onClick = {
                     if (isEnabled) {
                         if (isInHierarchy) {
                             // Already in this section's hierarchy - pop back to root
-                            navController.popBackStack(route = screen, inclusive = false)
+                            navController.popBackStack(route = item.screen, inclusive = false)
                         } else {
                             // Navigate to new section
-                            navController.navigate(screen) {
+                            navController.navigate(item.screen) {
                                 popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
@@ -91,8 +83,7 @@ fun ApodBottomNavBar(
                         }
                     }
                 },
-                icon = { Icon(icon, contentDescription = label) },
-                label = { Text(label) }
+                modifier = Modifier.weight(1f)
             )
         }
     }

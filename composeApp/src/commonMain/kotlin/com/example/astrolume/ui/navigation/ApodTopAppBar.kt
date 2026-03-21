@@ -48,7 +48,7 @@ fun ApodTopAppBar(
                     strokeWidth = strokeWidthPx
                 )
             }
-            .height(72.dp)
+            .height(65.dp)
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
