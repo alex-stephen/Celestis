@@ -7,6 +7,8 @@ import coil3.PlatformContext
 import com.example.astrolume.data.ApodRepository
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.ui.utils.ImagePrefetcher
+import com.example.astrolume.ui.utils.LinkGenerator
+import com.example.astrolume.ui.utils.ShareManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
@@ -31,7 +33,8 @@ sealed interface HomeUiState {
 class HomeViewModel(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
-    private val context: PlatformContext
+    private val context: PlatformContext,
+    private val shareManager: ShareManager
 ) : ViewModel() {
 
     private val todayApodFlow = repository.observeLatestApod()
@@ -186,5 +189,22 @@ class HomeViewModel(
 
     fun hideHdImage() {
         _selectedHdUrl.value = null
+    }
+
+    fun shareApod() {
+        val state = uiState.value as? HomeUiState.Success ?: return
+        val apod = when {
+            isShowingRandom.value -> state.randomApod
+            else -> state.todayApod
+        } ?: return
+        
+        val deepLink = LinkGenerator.generatePhotoLink(apod.date)
+        val shareText = """
+            Check out this space photo: ${apod.title}
+            
+            View in Celestis: $deepLink
+        """.trimIndent()
+
+        shareManager.shareData(title = apod.title ?: "Celestis Share", text = shareText)
     }
 }

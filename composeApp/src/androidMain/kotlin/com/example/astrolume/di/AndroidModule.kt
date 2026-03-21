@@ -5,6 +5,8 @@ import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.example.astrolume.AndroidPlatform
 import com.example.astrolume.Platform
 import com.example.astrolume.database.AppDatabase
+import com.example.astrolume.ui.utils.AndroidShareManager
+import com.example.astrolume.ui.utils.ShareManager
 import org.koin.dsl.module
 
 val androidModule = module {
@@ -21,4 +23,5 @@ val androidModule = module {
     }
 
     single<Platform> { AndroidPlatform(get()) }
+    single<ShareManager> { AndroidShareManager(get<Platform>().context) }
 }

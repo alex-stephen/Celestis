@@ -81,10 +81,8 @@ import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.model.isVideo
 import com.example.astrolume.ui.components.CelestisVideoPlayer
 import com.example.astrolume.ui.components.HdImagePopup
-import com.example.astrolume.ui.components.VideoPlaceholder
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.utils.HapticFeedbackType
-import com.example.astrolume.ui.utils.VideoUrlUtils
 import com.example.astrolume.ui.utils.createHapticFeedback
 import com.example.astrolume.ui.viewModels.HomeUiState
 import com.example.astrolume.ui.viewModels.HomeViewModel
@@ -115,6 +113,7 @@ fun HomeScreen(
                         windowSizeClass = windowSizeClass,
                         isShowingRandom = isShowingRandom,
                         isFetchingRandom = isFetchingRandom,
+                        onShare = viewModel::shareApod,
                         onRefresh = viewModel::showNextRandom,
                         onBackToToday = viewModel::showToday,
                         onFavoriteToggle = viewModel::toggleFavorite,
@@ -137,6 +136,7 @@ fun HomeScreenSuccess(
     windowSizeClass: WindowSizeClass,
     isShowingRandom: Boolean,
     isFetchingRandom: Boolean,
+    onShare: () -> Unit,
     onRefresh: () -> Unit,
     onBackToToday: () -> Unit,
     onFavoriteToggle: (String, Boolean) -> Unit,
@@ -234,7 +234,7 @@ fun HomeScreenSuccess(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
+                    IconButton(onClick = onShare) {
                         Icon(Icons.Default.Share, null, tint = Color.White)
                     }
                 }
