@@ -39,7 +39,8 @@ class HomeViewModel(
     // 2. The Random Stream (Managed in memory, then saved if favorited)
     private val _randomApod = MutableStateFlow<ApodResponse?>(null)
     private val _selectedHdUrl = MutableStateFlow<String?>(null)
-    // Internal State
+    
+    // Internal State - Derived from today's APOD and current random selection
     val uiState: StateFlow<HomeUiState> = combine(
         todayApodFlow,
         _randomApod,
@@ -64,8 +65,8 @@ class HomeViewModel(
     val isShowingRandom: StateFlow<Boolean> = _isShowingRandom.asStateFlow()
 
     private val randomQueue = ArrayDeque<ApodResponse>()
-    private val TARGET_CAPACITY = 20  // Keep 20 items ready
-    private val REFILL_THRESHOLD = 10 // Trigger refill when half are gone
+    private val TARGET_CAPACITY = 20  
+    private val REFILL_THRESHOLD = 10 
     private val BATCH_SIZE = 10
 
     private val _isRefilling = MutableStateFlow(false)
@@ -106,28 +107,36 @@ class HomeViewModel(
     private fun refillQueue(initial: Boolean = false) {
         if (prefetchJob?.isActive == true) return
 
-        prefetchJob = viewModelScope.launch {
+        prefetchJob = viewModelScope.launch(Dispatchers.IO) {
             _isRefilling.value = true
             try {
-                val needed = if (initial) TARGET_CAPACITY else BATCH_SIZE
+                // Efficient Batching: Only fetch what's needed to hit target
+                val needed = if (initial) 5 else BATCH_SIZE // Start with 5 for faster initial load
                 val newItems = repository.fetchRandom(needed)
 
                 randomQueue.addAll(newItems)
                 
-                // ZERO-LATENCY MAGIC: Prefetch all images in the queue immediately
+                // PREDICTIVE PREFETCHING: Cache images in background
                 ImagePrefetcher.prefetchApodBatch(
                     imageLoader = imageLoader,
                     context = context,
                     apods = newItems,
-                    scope = viewModelScope
+                    scope = this
                 )
 
-                // If it was the first time ever, show the first item immediately
                 if (initial && _randomApod.value == null) {
                     _randomApod.value = randomQueue.removeFirstOrNull()
                 }
+                
+                // If we initially only fetched 5, fill up the rest of the target capacity now
+                if (initial && randomQueue.size < TARGET_CAPACITY) {
+                     val remaining = TARGET_CAPACITY - randomQueue.size
+                     val moreItems = repository.fetchRandom(remaining)
+                     randomQueue.addAll(moreItems)
+                     ImagePrefetcher.prefetchApodBatch(imageLoader, context, moreItems, this)
+                }
             } catch (e: Exception) {
-                // Network error - we'll try again on the next swipe
+                // Network error - silent fallback
             } finally {
                 _isRefilling.value = false
             }
@@ -135,14 +144,14 @@ class HomeViewModel(
     }
 
     private fun fetchEmergencySingle() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _isRefilling.value = true
             try {
                 val item = repository.fetchRandom(1).firstOrNull()
                 _randomApod.value = item
             } finally {
                 _isRefilling.value = false
-                refillQueue() // Attempt to fix the empty queue
+                refillQueue() 
             }
         }
     }
@@ -152,9 +161,7 @@ class HomeViewModel(
     }
 
     fun toggleFavorite(date: String, isFav: Boolean) {
-        // Optimistic UI Updates
         val currentState = uiState.value as? HomeUiState.Success ?: return
-
         val isToday = currentState.todayApod.date == date
         val targetApod = if (isToday) currentState.todayApod else currentState.randomApod
 
@@ -168,7 +175,7 @@ class HomeViewModel(
     }
 
     fun refreshAll() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.refreshLatest()
         }
     }
