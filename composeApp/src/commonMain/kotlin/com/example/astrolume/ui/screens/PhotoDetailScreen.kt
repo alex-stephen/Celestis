@@ -51,7 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.example.astrolume.model.isVideo
 import com.example.astrolume.ui.components.CelestisVideoPlayer
@@ -59,7 +58,6 @@ import com.example.astrolume.ui.components.HdImagePopup
 import com.example.astrolume.ui.components.LoadingOverlay
 import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.viewModels.PhotoDetailUiState
-import com.example.astrolume.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlin.math.roundToInt
@@ -68,17 +66,20 @@ import kotlin.math.roundToInt
 @Composable
 fun SharedTransitionScope.PhotoDetailScreen(
     date: String,
-    viewModel: PhotoDetailViewModel,
+    state: PhotoDetailUiState,
+    onFavoriteClick: () -> Unit,
+    onHideHdImage: () -> Unit,
+    onShowHdImage: (String?, String?) -> Unit,
+    onShare: () -> Unit,
+    onLoadApodByDate: (String) -> Unit,
     windowSizeClass: WindowSizeClass,
     onNavigateBack: () -> Unit,
-    onShare: () -> Unit = {},
     hazeState: HazeState,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(date) {
-        viewModel.loadApodByDate(date)
+        onLoadApodByDate(date)
     }
 
     Surface(
@@ -89,7 +90,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            when (val state = uiState) {
+            when (val state = state) {
                 is PhotoDetailUiState.Loading -> {
                     // Only show loading overlay after a delay to avoid flash for cached content
                     var showLoading by remember { mutableStateOf(false) }
@@ -113,16 +114,17 @@ fun SharedTransitionScope.PhotoDetailScreen(
                         PhotoDetailContent(
                             state = state,
                             onImageClick = {
-                                viewModel.showHdImage(
-                                    state.apod.urlHD,
-                                    state.apod.url
-                                )
+                                state.apod.urlHD?.let { hdUrl ->
+                                    state.apod.url?.let { url ->
+                                        onShowHdImage(hdUrl, url)
+                                    }
+                                }
                             },
-                            onFavoriteClick = viewModel::toggleFavorite,
-                            onHideHdImage = viewModel::hideHdImage,
+                            onFavoriteClick = onFavoriteClick,
+                            onHideHdImage = onHideHdImage,
                             hazeState = hazeState,
                             onNavigateBack = onNavigateBack,
-                            onShare = { viewModel.shareApod() },
+                            onShare = onShare,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                     }

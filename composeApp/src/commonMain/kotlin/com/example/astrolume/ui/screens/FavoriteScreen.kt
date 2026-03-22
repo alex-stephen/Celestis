@@ -41,14 +41,13 @@ import dev.chrisbanes.haze.hazeSource
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SharedTransitionScope.FavoriteScreen(
-    viewModel: FavoriteViewModel,
+    uiState: FavoriteUiState,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     Box(
