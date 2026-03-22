@@ -71,7 +71,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.model.isVideo
@@ -81,7 +80,6 @@ import com.example.astrolume.ui.navigation.ApodTopAppBar
 import com.example.astrolume.ui.utils.HapticFeedbackType
 import com.example.astrolume.ui.utils.createHapticFeedback
 import com.example.astrolume.ui.viewModels.HomeUiState
-import com.example.astrolume.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -91,16 +89,20 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel,
+    uiState: HomeUiState,
+    isShowingRandom: Boolean,
+    isFetchingRandom: Boolean,
+    onShare: () -> Unit,
+    onRefresh: () -> Unit,
+    onBackToToday: () -> Unit,
+    onFavoriteToggle: (String, Boolean) -> Unit,
+    onShowHdImage: (String?, String?) -> Unit,
+    onHideHdImage: () -> Unit,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
     bottomPadding: Dp = 0.dp
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isShowingRandom by viewModel.isShowingRandom.collectAsStateWithLifecycle()
-    val isFetchingRandom by viewModel.isRefilling.collectAsStateWithLifecycle()
-
     // No Scaffold TopBar slot = No unwanted gaps
     Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -111,14 +113,14 @@ fun HomeScreen(
                         windowSizeClass = windowSizeClass,
                         isShowingRandom = isShowingRandom,
                         isFetchingRandom = isFetchingRandom,
-                        onShare = viewModel::shareApod,
-                        onRefresh = viewModel::showNextRandom,
-                        onBackToToday = viewModel::showToday,
-                        onFavoriteToggle = viewModel::toggleFavorite,
+                        onShare = onShare,
+                        onRefresh = onRefresh,
+                        onBackToToday = onBackToToday,
+                        onFavoriteToggle = onFavoriteToggle,
                         onOpenDrawer = onOpenDrawer,
                         hazeState = hazeState,
-                        onShowHdImage = viewModel::showHdImage,
-                        onHideHdImage = viewModel::hideHdImage,
+                        onShowHdImage = onShowHdImage,
+                        onHideHdImage = onHideHdImage,
                         bottomPadding = bottomPadding
                     )
                 }
@@ -126,7 +128,7 @@ fun HomeScreen(
                 is HomeUiState.Loading -> HomeScreenLoading()
                 is HomeUiState.Error -> HomeScreenError(
                     state,
-                    onRefresh = viewModel::showNextRandom
+                    onRefresh = onRefresh
                 )
             }
         }

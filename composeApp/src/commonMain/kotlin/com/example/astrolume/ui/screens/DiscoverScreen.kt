@@ -61,10 +61,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.SubcomposeAsyncImage
 import com.example.astrolume.model.ApodResponse
 import com.example.astrolume.model.isVideo
@@ -83,15 +83,18 @@ import dev.chrisbanes.haze.hazeSource
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun SharedTransitionScope.DiscoverScreen(
-    viewModel: DiscoverViewModel,
+    uiState: DiscoverUiState,
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onLoadMoreSearchResults: () -> Unit,
+    onDateRangeSelected: (Long?, Long?) -> Unit,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -120,7 +123,7 @@ fun SharedTransitionScope.DiscoverScreen(
                     DiscoverScreenGrid(
                         state = state,
                         windowSizeClass = windowSizeClass,
-                        viewModel = viewModel,
+                        onLoadMoreSearchResults = onLoadMoreSearchResults,
                         onPhotoDetailClick = onPhotoDetailClick,
                         animatedVisibilityScope = animatedVisibilityScope,
                         contentPadding = PaddingValues(top = 80.dp, bottom = 80.dp)
@@ -130,9 +133,9 @@ fun SharedTransitionScope.DiscoverScreen(
         }
         
         DiscoverSearchAppBar(
-            query = query,
-            onQueryChange = viewModel::updateQuery,
-            onSearch = { viewModel.executeSearch() },
+            query = searchQuery,
+            onQueryChange = onQueryChange,
+            onSearch = onSearch,
             isLandscape = isLandscape,
             onOpenDrawer = onOpenDrawer,
             onOpenDatePicker = { showDatePicker = true },
@@ -143,7 +146,7 @@ fun SharedTransitionScope.DiscoverScreen(
         CelestisRangePicker(
             onDismiss = { showDatePicker = false },
             onConfirm = { start, end ->
-                viewModel.onDateRangeSelected(start, end)
+                onDateRangeSelected(start, end)
                 showDatePicker = false
             }
         )
@@ -154,7 +157,7 @@ fun SharedTransitionScope.DiscoverScreen(
 fun SharedTransitionScope.DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
-    viewModel: DiscoverViewModel,
+    onLoadMoreSearchResults: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
     contentPadding: PaddingValues
@@ -218,7 +221,7 @@ fun SharedTransitionScope.DiscoverScreenGrid(
                     
                     if (shouldLoadMore) {
                         LaunchedEffect(Unit) {
-                            viewModel.loadMoreSearchResults()
+                            onLoadMoreSearchResults()
                         }
                     }
                 }
@@ -425,6 +428,8 @@ fun DiscoverSearchAppBar(
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+    
     // A unified header that uses haze for a glassmorphism effect (premium feel)
     Surface(
         modifier = modifier
@@ -478,7 +483,10 @@ fun DiscoverSearchAppBar(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                keyboardActions = KeyboardActions(onSearch = { 
+                    focusManager.clearFocus()
+                    onSearch()
+                }),
                 decorationBox = { innerTextField ->
                     Row(
                         modifier = Modifier
