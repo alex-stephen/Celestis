@@ -10,7 +10,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.astrolume</string>
+			<string>com.example.celestis</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>getcelestis</string>
@@ -18,6 +18,6 @@
 		</dict>
 	</array>
 	<key>CFBundleIdentifier</key>
-	<string>com.example.astrolume</string>
+	<string>com.example.celestis</string>
 </dict>
 </plist>

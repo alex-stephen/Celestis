@@ -3,18 +3,18 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <application
-        android:name=".AstrolumeApp"
+        android:name=".CelestisApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Astrolume"
+        android:label="Celestis"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:windowSoftInputMode="adjustResize"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -29,9 +29,9 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 
                 <data 
-                    android:scheme="https"
                     android:host="getcelestis.com"
-                    android:pathPrefix="/photo" />
+                    android:pathPrefix="/photo"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
     </application>
