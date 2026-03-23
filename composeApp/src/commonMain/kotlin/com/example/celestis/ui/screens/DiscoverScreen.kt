@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -163,9 +164,9 @@ fun SharedTransitionScope.DiscoverScreenGrid(
 ) {
 
     val gridCols = when (windowSizeClass.widthSizeClass) {
-        WindowWidthSizeClass.Compact -> 2
-        WindowWidthSizeClass.Medium -> 3
-        else -> 4
+        WindowWidthSizeClass.Compact -> 3
+        WindowWidthSizeClass.Medium -> 4
+        else -> 5
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -280,9 +281,10 @@ fun SharedTransitionScope.ApodCard(
         modifier = Modifier
             .padding(1.dp)
             .fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RectangleShape,
+        //shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = Color.Transparent
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -297,7 +299,7 @@ fun SharedTransitionScope.ApodCard(
                     title = apod.title,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        //.clip(RoundedCornerShape(12.dp))
                         .aspectRatio(1f)
                 )
             } else {
@@ -319,7 +321,7 @@ fun SharedTransitionScope.ApodCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        //.clip(RoundedCornerShape(12.dp))
                         .aspectRatio(1f)
                         .sharedElement(
                             rememberSharedContentState(key = "image-${apod.date}"),
@@ -371,7 +373,7 @@ fun SharedTransitionScope.ApodCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.PlayArrow,
+                            imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Play Video",
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
@@ -438,6 +440,7 @@ fun DiscoverSearchAppBar(
                 style = HazeStyle(
                     backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
                     blurRadius = 20.dp,
+                    noiseFactor = 0f,
                     tint = HazeTint(Color.White.copy(alpha = 0.05f)),
                 )
             )

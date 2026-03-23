@@ -314,6 +314,7 @@ fun HomeScreenSuccess(
                     style = HazeStyle(
                         backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
                         blurRadius = 30.dp,
+                        noiseFactor = 0f,
                         tint = HazeTint.Unspecified
                     )
                 )
@@ -370,7 +371,7 @@ fun CardContent(
                                 alpha = 0.8f
                             ),
                             blurRadius = 30.dp,
-                            noiseFactor = 0.15f,
+                            noiseFactor = 0.10f,
                             tint = HazeTint.Unspecified
                         )
                     ),
@@ -533,7 +534,7 @@ fun RandomApodActionButton(
                 style = HazeStyle(
                     backgroundColor = Color.White.copy(alpha = 0.15f),
                     blurRadius = 30.dp,
-                    noiseFactor = 0.15f,
+                    noiseFactor = 0.05f,
                     tint = HazeTint.Unspecified
                 )
             )
@@ -566,7 +567,7 @@ fun GlassIconButton(
                 style = HazeStyle(
                     backgroundColor = Color.White.copy(alpha = 0.15f),
                     blurRadius = 30.dp,
-                    noiseFactor = 0.15f,
+                    noiseFactor = 0.05f,
                     tint = HazeTint.Unspecified
                 )
             )

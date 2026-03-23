@@ -54,12 +54,12 @@ fun App(
 
     val animatedAlpha by animateFloatAsState(
         targetValue = if (bottomBarState.isVisible || !isCompact) 1f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 200),
         label = "BottomBarAlpha"
     )
     val animatedOffset by animateFloatAsState(
         targetValue = if (bottomBarState.isVisible || !isCompact) 0f else 100f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 200),
         label = "BottomBarOffset"
     )
 

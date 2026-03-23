@@ -40,6 +40,7 @@ fun ApodBottomNavBar(
                 style = HazeStyle(
                     backgroundColor = Color(0xFF111111).copy(alpha = 0.85f), // Slightly transparent for blur visibility
                     blurRadius = 30.dp,
+                    noiseFactor = 0f,
                     tint = HazeTint.Unspecified, // Subtle tint for depth
                 )
             )
