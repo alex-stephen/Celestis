@@ -25,3 +25,4 @@ build/
 *.key
 google-services.json
 AGENTS.md
+.env
