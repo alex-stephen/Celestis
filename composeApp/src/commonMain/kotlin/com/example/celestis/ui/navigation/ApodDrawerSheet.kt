@@ -62,6 +62,7 @@ fun ApodDrawerSheet(
                 style = HazeStyle(
                     backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
                     blurRadius = 40.dp,
+                    noiseFactor = 0f,
                     tint = HazeTint.Unspecified
                 )
             )

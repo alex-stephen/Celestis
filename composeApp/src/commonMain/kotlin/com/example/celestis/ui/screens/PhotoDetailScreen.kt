@@ -3,9 +3,9 @@ package com.example.celestis.ui.screens
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -33,22 +32,22 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
@@ -57,10 +56,11 @@ import com.example.celestis.ui.components.CelestisVideoPlayer
 import com.example.celestis.ui.components.HdImagePopup
 import com.example.celestis.ui.components.LoadingOverlay
 import com.example.celestis.ui.navigation.ApodTopAppBar
+import com.example.celestis.ui.utils.extractDominantColor
 import com.example.celestis.ui.viewModels.PhotoDetailUiState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -190,52 +190,45 @@ fun SharedTransitionScope.PhotoDetailContent(
 ) {
     val apod = state.apod
     val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+
+    var dominantColor by remember(apod.date) { mutableStateOf(Color.Transparent) }
     
-    // Pull-to-dismiss state
-    var offsetY by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    val dismissThreshold = 200f
+    // Animate the color for smooth fade-in effect
+    val animatedDominantColor by animateColorAsState(
+        targetValue = dominantColor,
+        label = "dominantColorAnimation"
+    )
+
+    val density = LocalDensity.current
+// Calculate pixel offsets for the "Glow Zone"
+    val imageBottomPx = with(density) { 400.dp.toPx() }
+    val glowDepthPx = with(density) { 600.dp.toPx() } // How far the light travels
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-    ) {
-        Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset { IntOffset(0, offsetY.roundToInt()) }
-            .graphicsLayer {
-                alpha = 1f - (offsetY / 1000f).coerceIn(0f, 0.5f)
-            }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { isDragging = true },
-                    onDragEnd = {
-                        if (offsetY > dismissThreshold) {
-                            onNavigateBack()
-                        } else {
-                            offsetY = 0f
-                        }
-                        isDragging = false
-                    },
-                    onDragCancel = {
-                        offsetY = 0f
-                        isDragging = false
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        // Only allow downward drag
-                        if (scrollState.value == 0 && dragAmount > 0) {
-                            offsetY = (offsetY + dragAmount).coerceAtLeast(0f)
-                        }
-                    }
+            .drawBehind {
+                drawRect(color = Color.Black)
+
+                // The "Eased" Gradient - avoid the "Blob" by adding mid-points
+                val easedGradient = Brush.verticalGradient(
+                    0.0f to animatedDominantColor.copy(alpha = 0.5f), // Start at bottom of image
+                    0.3f to animatedDominantColor.copy(alpha = 0.2f), // Quick drop-off
+                    0.6f to animatedDominantColor.copy(alpha = 0.05f), // Long tail
+                    1.0f to Color.Transparent,                        // Full fade
+                    startY = imageBottomPx,
+                    endY = imageBottomPx + glowDepthPx
                 )
+
+                drawRect(brush = easedGradient)
             }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState, enabled = !isDragging)
-            ) {
                 // Add top padding for the AppBar ContentPadding
                 Spacer(modifier = Modifier.height(65.dp))
                 
@@ -294,6 +287,20 @@ fun SharedTransitionScope.PhotoDetailContent(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                    }
+                                }
+                            },
+                            onSuccess = { successState ->
+                                // Extract dominant color when image loads successfully
+                                coroutineScope.launch {
+                                    try {
+                                        val image = successState.result.image
+                                        val extractedColor = extractDominantColor(image)
+                                        extractedColor?.let { color ->
+                                            dominantColor = color
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
                                     }
                                 }
                             }
@@ -372,7 +379,6 @@ fun SharedTransitionScope.PhotoDetailContent(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
-        }
 
         // HD Image Popup
         if (state.selectedHdUrl != null) {

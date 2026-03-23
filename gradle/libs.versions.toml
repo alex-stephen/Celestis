@@ -35,6 +35,7 @@ sqliteBundled = "2.5.0-alpha11"
 uuid = "0.8.4"
 material = "1.10.0"
 paging = "3.3.0"
+palette = "1.0.0"
 
 [libraries]
 androidx-activity-compose-v1124 = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -90,6 +91,7 @@ koin-compose = { module = "io.insert-koin:koin-compose", version.ref = "koin" }
 koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", version.ref = "koin" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 haze = { module = "dev.chrisbanes.haze:haze", version = "1.7.2" }
+androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
