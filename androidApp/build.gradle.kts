@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.astrolume.android"
+    namespace = "com.example.celestis.android"
     compileSdk = 36
 
     defaultConfig {
