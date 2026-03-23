@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		5DCFD60858585D417DCC9A4A /* AstroLume.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AstroLume.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5DCFD60858585D417DCC9A4A /* Celestis.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Celestis.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,7 +59,7 @@
 		969D21BCCCDC630D04DAD8B4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5DCFD60858585D417DCC9A4A /* AstroLume.app */,
+				5DCFD60858585D417DCC9A4A /* Celestis.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -87,7 +87,7 @@
 			packageProductDependencies = (
 			);
 			productName = iosApp;
-			productReference = 5DCFD60858585D417DCC9A4A /* AstroLume.app */;
+			productReference = 5DCFD60858585D417DCC9A4A /* Celestis.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

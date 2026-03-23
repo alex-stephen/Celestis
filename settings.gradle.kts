@@ -1,4 +1,4 @@
-rootProject.name = "AstroLume"
+rootProject.name = "Celestis"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
