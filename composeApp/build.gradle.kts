@@ -15,7 +15,7 @@ plugins {
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("com.example.astrolume.database")
+            packageName.set("com.example.celestis.database")
             generateAsync.set(false)
             deriveSchemaFromMigrations.set(false)
         }
@@ -98,7 +98,7 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 buildkonfig {
-    packageName = "com.example.astrolume"
+    packageName = "com.example.celestis"
 
     // Default values (used if local.properties is missing)
     defaultConfigs {
@@ -113,11 +113,11 @@ buildkonfig {
 }
 
 android {
-    namespace = "com.example.astrolume"
+    namespace = "com.example.celestis"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.astrolume" // This tells Android "I am an App"
+        applicationId = "com.example.celestis" // This tells Android "I am an App"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
