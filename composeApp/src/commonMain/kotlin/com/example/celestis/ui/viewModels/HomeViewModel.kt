@@ -20,8 +20,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 sealed interface HomeUiState {
     object Loading : HomeUiState
@@ -46,6 +48,10 @@ class HomeViewModel(
     // 2. The Random Stream (Managed in memory, then saved if favorited)
     private val _randomApod = MutableStateFlow<ApodResponse?>(null)
     private val _selectedHdUrl = MutableStateFlow<String?>(null)
+    
+    // Track image loading state for synchronized transitions
+    private val _isImageLoading = MutableStateFlow(false)
+    val isImageLoading: StateFlow<Boolean> = _isImageLoading.asStateFlow()
     
     // Internal State - Derived from today's APOD and current random selection
     val uiState: StateFlow<HomeUiState> = combine(
@@ -82,16 +88,39 @@ class HomeViewModel(
 
 
     init {
-        refreshAll()
+        checkAndRefreshTodayApod()
         refillQueue(initial = true)
 
         viewModelScope.launch(Dispatchers.IO) {
             repository.pruneCacheIfNeeded()
         }
     }
+    
+    /**
+     * Checks if we need to fetch today's APOD. This should be called:
+     * - On app launch (init)
+     * - When app returns from background (via onResume)
+     * 
+     * This ensures the user always sees the latest APOD without manual refresh.
+     */
+    fun checkAndRefreshTodayApod() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val now = Clock.System.now().toEpochMilliseconds()
+
+                val currentApod = todayApodFlow.firstOrNull()
+                
+                if (currentApod == null || currentApod.date != now.toString()) {
+                    repository.refreshLatest()
+                }
+            } catch (e: Exception) {
+                // Silent fail - we'll show cached data
+            }
+        }
+    }
 
     /**
-     * The Snappy Random Logic: Uses the cached image instantly,
+     * The Snappy Random Logic: Uses the cached image instantly with professional transition,
      * then fetches the next one in the background.
      */
     fun showNextRandom() {
@@ -100,16 +129,31 @@ class HomeViewModel(
             return
         }
 
-        val next = randomQueue.removeFirst()
-        _randomApod.value = next
-        _isShowingRandom.value = true
+        viewModelScope.launch {
+            // Start loading state for smooth transition
+            _isImageLoading.value = true
+            
+            val next = randomQueue.removeFirst()
+            
+            // Ensure image is in memory cache before showing
+            val request = coil3.request.ImageRequest.Builder(context)
+                .data(next.url)
+                .build()
+            imageLoader.execute(request)
+            
+            kotlinx.coroutines.delay(150)
+            
+            _randomApod.value = next
+            _isShowingRandom.value = true
+            
+            _isImageLoading.value = false
 
-        // Network-aware HD prefetching: Only prefetch HD on Wi-Fi when not in low data mode
-        prefetchHdImage(next.urlHD)
+            prefetchHdImage(next.urlHD)
 
-        // Check if we need to top up the tank
-        if (randomQueue.size <= REFILL_THRESHOLD) {
-            refillQueue()
+            // Check if we need to top up the tank
+            if (randomQueue.size <= REFILL_THRESHOLD) {
+                refillQueue()
+            }
         }
     }
     
@@ -139,13 +183,12 @@ class HomeViewModel(
         prefetchJob = viewModelScope.launch(Dispatchers.IO) {
             _isRefilling.value = true
             try {
-                // Efficient Batching: Only fetch what's needed to hit target
                 val needed = if (initial) 5 else BATCH_SIZE // Start with 5 for faster initial load
                 val newItems = repository.fetchRandom(needed)
 
                 randomQueue.addAll(newItems)
                 
-                // PREDICTIVE PREFETCHING: Cache images in background
+                // Cache images in background
                 ImagePrefetcher.prefetchApodBatch(
                     imageLoader = imageLoader,
                     context = context,
@@ -207,6 +250,13 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             repository.refreshLatest()
         }
+    }
+    
+    /**
+     * Called when app resumes from background to check for new APOD.
+     */
+    fun onAppResume() {
+        checkAndRefreshTodayApod()
     }
 
     /**
