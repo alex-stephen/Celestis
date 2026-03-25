@@ -47,11 +47,13 @@ fun NavGraph(
                 val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
                 val isShowingRandom by homeViewModel.isShowingRandom.collectAsStateWithLifecycle()
                 val isFetchingRandom by homeViewModel.isRefilling.collectAsStateWithLifecycle()
+                val isImageLoading by homeViewModel.isImageLoading.collectAsStateWithLifecycle()
 
                 HomeScreen(
                     uiState = uiState,
                     isShowingRandom = isShowingRandom,
                     isFetchingRandom = isFetchingRandom,
+                    isImageLoading = isImageLoading,
                     onShare = homeViewModel::shareApod,
                     onRefresh = homeViewModel::showNextRandom,
                     onBackToToday = homeViewModel::showToday,
