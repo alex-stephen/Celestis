@@ -120,6 +120,7 @@ class DiscoverViewModel(
     fun showRange() {
         viewModelScope.launch {
             _isRefreshing.value = true
+            _rangeApod.value = emptyList()
             _errorMessage.value = null
             try {
                 // Fetch random APODs to fill the discovery feed
@@ -170,6 +171,8 @@ class DiscoverViewModel(
     private fun performSearch(query: String, reset: Boolean) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
+            _isRefreshing.value = true
+            _rangeApod.value = emptyList()
             val currentState = _searchState.value
             
             if (reset) {
@@ -212,6 +215,8 @@ class DiscoverViewModel(
                     isLoadingMore = false,
                     error = e.message ?: "Search failed"
                 )
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }
