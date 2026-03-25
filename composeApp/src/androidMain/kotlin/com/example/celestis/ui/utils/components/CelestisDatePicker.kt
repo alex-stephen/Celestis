@@ -18,11 +18,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
+import kotlinx.datetime.Clock
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,13 +36,27 @@ actual fun CelestisRangePicker(
     onConfirm: (Long?, Long?) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+
+    // Define the APOD Epoch: June 16, 1995
+    val apodEpoch = remember {
+        LocalDate(1995, 6, 16).atStartOfDayIn(TimeZone.UTC).toEpochMilliseconds()
+    }
+    val today = remember {
+        Clock.System.now().toEpochMilliseconds()
+    }
+
     val dateRangePickerState = rememberDateRangePickerState(
         initialDisplayMode = DisplayMode.Picker,
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                return utcTimeMillis <= Clock.System.now().toEpochMilliseconds()
+                // Elegantly restrict: Epoch <= Selected <= Today
+                return utcTimeMillis in apodEpoch..today
             }
-            override fun isSelectableYear(year: Int): Boolean = year in 1995..2026
+
+            override fun isSelectableYear(year: Int): Boolean {
+                val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+                return year in 1995..currentYear
+            }
         }
     )
 
@@ -45,38 +64,45 @@ actual fun CelestisRangePicker(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis) },
+                onClick = {
+                    onConfirm(
+                        dateRangePickerState.selectedStartDateMillis,
+                        dateRangePickerState.selectedEndDateMillis
+                    )
+                },
                 enabled = dateRangePickerState.selectedStartDateMillis != null
             ) { Text("Confirm") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     ) {
-        Column {
-            // 1. THE FAST-TRAVEL HEADER
+        Column(modifier = Modifier.padding(vertical = 16.dp)) {
             Text(
                 text = "Jump to Year",
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 color = MaterialTheme.colorScheme.primary
             )
 
+            val currentYear = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+            val years = remember { (1995..currentYear).reversed().toList() }
+
             LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Generate years from 1995 to current
-                val years = (1995..2026).reversed().toList()
                 items(years) { year ->
                     SuggestionChip(
                         onClick = {
-                            // Programmatically jump the calendar to Jan 1st of that year
-                            val calendar = java.util.Calendar.getInstance()
-                            calendar.set(year, 0, 1)
+                            // KMP-friendly way to get the start of the year
+                            val jumpedDate = LocalDate(year, 1, 1)
+                                .atStartOfDayIn(TimeZone.UTC)
+                                .toEpochMilliseconds()
+
                             scope.launch {
-                                dateRangePickerState.displayedMonthMillis = calendar.timeInMillis
+                                // Ensure we don't jump before the epoch
+                                val safeJump = if (jumpedDate < apodEpoch) apodEpoch else jumpedDate
+                                dateRangePickerState.displayedMonthMillis = safeJump
                             }
                         },
                         label = { Text(year.toString()) }
@@ -84,18 +110,16 @@ actual fun CelestisRangePicker(
                 }
             }
 
-            // 2. THE CALENDAR
             DateRangePicker(
                 state = dateRangePickerState,
-                showModeToggle = false, // Pencil is gone forever
-                title = null, // We used our custom jump header instead
+                showModeToggle = false,
+                title = null,
                 headline = {
-                    // Keep the range selection feedback
                     val start = dateRangePickerState.selectedStartDateMillis
                     val end = dateRangePickerState.selectedEndDateMillis
                     Text(
                         text = if (start != null && end != null) "Range Selected" else "Select Dates",
-                        modifier = Modifier.padding(start = 24.dp, bottom = 8.dp),
+                        modifier = Modifier.padding(start = 24.dp),
                         style = MaterialTheme.typography.headlineSmall
                     )
                 }

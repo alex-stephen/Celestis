@@ -111,11 +111,11 @@ fun SharedTransitionScope.DiscoverScreen(
                 is DiscoverUiState.Loading -> {
                     // Professional loading with shimmer effect
                     val gridCols = when (windowSizeClass.widthSizeClass) {
-                        WindowWidthSizeClass.Compact -> 2
-                        WindowWidthSizeClass.Medium -> 3
-                        else -> 4
+                        WindowWidthSizeClass.Compact -> 3
+                        WindowWidthSizeClass.Medium -> 4
+                        else -> 5
                     }
-                    ShimmerApodGrid(columns = gridCols, itemCount = 8)
+                    ShimmerApodGrid(columns = gridCols, itemCount = 30)
                 }
 
                 is DiscoverUiState.Error -> DiscoverScreenError(state)
