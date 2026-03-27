@@ -2,9 +2,6 @@ package com.example.celestis.ui.navigation
 
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,7 +37,11 @@ fun NavGraph(
         NavHost(
             navController = navController,
             startDestination = Screen.Home,
-            modifier = modifier
+            modifier = modifier,
+            enterTransition = { Transitions.tabEnter },
+            exitTransition = { Transitions.tabExit },
+            popEnterTransition = { Transitions.tabEnter },
+            popExitTransition = { Transitions.tabExit }
         ) {
             composable<Screen.Home> {
                 val homeViewModel: HomeViewModel = koinViewModel()
@@ -106,12 +107,10 @@ fun NavGraph(
             }
 
             composable<Screen.PhotoDetail>(
-                enterTransition = {
-                    fadeIn(animationSpec = tween(400))
-                },
-                exitTransition = {
-                    fadeOut(animationSpec = tween(400))
-                }
+                enterTransition = { Transitions.detailEnter },
+                exitTransition = { Transitions.detailExit },
+                popEnterTransition = { Transitions.tabEnter },
+                popExitTransition = { Transitions.detailExit }
             ) { backStackEntry ->
                 val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
                 val viewModel: PhotoDetailViewModel = koinViewModel()
