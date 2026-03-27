@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -103,7 +102,7 @@ fun HomeScreen(
     bottomPadding: Dp = 0.dp
 ) {
     // No Scaffold TopBar slot = No unwanted gaps
-    Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0)) { _ ->
+    Scaffold() { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (val state = uiState) {
                 is HomeUiState.Success -> {

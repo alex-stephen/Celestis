@@ -1,5 +1,6 @@
 package com.example.celestis.ui.navigation
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.NavigationBar
 import androidx.compose.runtime.Composable
@@ -14,34 +15,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
+/**
+ * Pager-based Bottom Navigation Bar for use with HorizontalPager
+ */
 @Composable
 fun ApodBottomNavBar(
-    navController: NavHostController,
-    isEnabled: Boolean,
+    selectedIndex: Int,
+    onTabSelected: (Int) -> Unit,
     hazeState: HazeState,
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
     NavigationBar(
         modifier = Modifier
             .hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
-                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f), // Slightly transparent for blur visibility
+                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
                     blurRadius = 30.dp,
                     noiseFactor = 0f,
-                    tint = HazeTint.Unspecified, // Subtle tint for depth
+                    tint = HazeTint.Unspecified,
                 )
             )
             .drawBehind {
@@ -55,35 +51,17 @@ fun ApodBottomNavBar(
                     strokeWidth = strokeWidthPx
                 )
             }
-            .height(90.dp),
+            .height(70.dp),
         containerColor = Color.Transparent,
-        tonalElevation = 0.dp
+        tonalElevation = 0.dp,
+        windowInsets = WindowInsets(0, 0, 0, 0) // Disable automatic window insets
     ) {
-
-        NavItem.entries.forEach { item ->
-            val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(item.screen::class) } == true
-            val isSelected = currentDestination?.hasRoute(item.screen::class) == true
+        NavItem.entries.forEachIndexed { index, item ->
             CustomNavItem(
-                selected = isSelected,
+                selected = selectedIndex == index,
                 icon = item.icon,
                 label = item.label,
-                onClick = {
-                    if (isEnabled) {
-                        if (isInHierarchy) {
-                            // Already in this section's hierarchy - pop back to root
-                            navController.popBackStack(route = item.screen, inclusive = false)
-                        } else {
-                            // Navigate to new section
-                            navController.navigate(item.screen) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    }
-                },
+                onClick = { onTabSelected(index) },
                 modifier = Modifier.weight(1f)
             )
         }
