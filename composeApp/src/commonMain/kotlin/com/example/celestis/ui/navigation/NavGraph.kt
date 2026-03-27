@@ -12,13 +12,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.example.celestis.ui.screens.DiscoverScreen
-import com.example.celestis.ui.screens.FavoriteScreen
-import com.example.celestis.ui.screens.HomeScreen
+import com.example.celestis.ui.screens.MainPagerScreen
 import com.example.celestis.ui.screens.PhotoDetailScreen
-import com.example.celestis.ui.viewModels.DiscoverViewModel
-import com.example.celestis.ui.viewModels.FavoriteViewModel
-import com.example.celestis.ui.viewModels.HomeViewModel
 import com.example.celestis.ui.viewModels.PhotoDetailViewModel
 import dev.chrisbanes.haze.HazeState
 import org.koin.compose.viewmodel.koinViewModel
@@ -36,76 +31,27 @@ fun NavGraph(
     SharedTransitionLayout {
         NavHost(
             navController = navController,
-            startDestination = Screen.Home,
+            startDestination = "main_pager",
             modifier = modifier,
             enterTransition = { Transitions.tabEnter },
             exitTransition = { Transitions.tabExit },
             popEnterTransition = { Transitions.tabEnter },
             popExitTransition = { Transitions.tabExit }
         ) {
-            composable<Screen.Home> {
-                val homeViewModel: HomeViewModel = koinViewModel()
-                val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
-                val isShowingRandom by homeViewModel.isShowingRandom.collectAsStateWithLifecycle()
-                val isFetchingRandom by homeViewModel.isRefilling.collectAsStateWithLifecycle()
-                val isImageLoading by homeViewModel.isImageLoading.collectAsStateWithLifecycle()
-
-                HomeScreen(
-                    uiState = uiState,
-                    isShowingRandom = isShowingRandom,
-                    isFetchingRandom = isFetchingRandom,
-                    isImageLoading = isImageLoading,
-                    onShare = homeViewModel::shareApod,
-                    onRefresh = homeViewModel::showNextRandom,
-                    onBackToToday = homeViewModel::showToday,
-                    onFavoriteToggle = homeViewModel::toggleFavorite,
-                    onShowHdImage = homeViewModel::showHdImage,
-                    onHideHdImage = homeViewModel::hideHdImage,
+            // Main pager screen with horizontal swipe navigation
+            composable("main_pager") {
+                MainPagerScreen(
                     windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
                     hazeState = hazeState,
+                    onNavigateToDetail = { date ->
+                        navController.navigate(Screen.PhotoDetail(date))
+                    },
+                    onOpenDrawer = onOpenDrawer,
                     bottomPadding = bottomPadding
                 )
             }
 
-            composable<Screen.Discover> {
-                val viewModel: DiscoverViewModel = koinViewModel()
-                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-                
-                DiscoverScreen(
-                    uiState = uiState,
-                    searchQuery = searchQuery,
-                    onQueryChange = viewModel::updateQuery,
-                    onSearch = viewModel::executeSearch,
-                    onLoadMoreSearchResults = viewModel::loadMoreSearchResults,
-                    onDateRangeSelected = viewModel::onDateRangeSelected,
-                    windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
-                    onPhotoDetailClick = {
-                        navController.navigate(Screen.PhotoDetail(it.date))
-                    },
-                    hazeState = hazeState,
-                    animatedVisibilityScope = this
-                )
-            }
-
-            composable<Screen.Favorites> {
-                val viewModel: FavoriteViewModel = koinViewModel()
-                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-                
-                FavoriteScreen(
-                    uiState = uiState,
-                    windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
-                    onPhotoDetailClick = {
-                        navController.navigate(Screen.PhotoDetail(it.date))
-                    },
-                    hazeState = hazeState,
-                    animatedVisibilityScope = this
-                )
-            }
-
+            // Photo detail screen
             composable<Screen.PhotoDetail>(
                 enterTransition = { Transitions.detailEnter },
                 exitTransition = { Transitions.detailExit },

@@ -126,7 +126,7 @@ fun SharedTransitionScope.DiscoverScreen(
                         onLoadMoreSearchResults = onLoadMoreSearchResults,
                         onPhotoDetailClick = onPhotoDetailClick,
                         animatedVisibilityScope = animatedVisibilityScope,
-                        contentPadding = PaddingValues(top = 80.dp, bottom = 80.dp)
+                        contentPadding = PaddingValues(top = 65.dp, bottom = 80.dp)
                     )
                 }
             }
