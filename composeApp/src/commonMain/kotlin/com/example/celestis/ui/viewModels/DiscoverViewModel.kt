@@ -5,15 +5,22 @@ import androidx.lifecycle.viewModelScope
 import coil3.ImageLoader
 import coil3.PlatformContext
 import com.example.celestis.data.ApodRepository
+import com.example.celestis.data.toResponse
 import com.example.celestis.model.ApodResponse
+import com.example.celestis.network.NetworkMonitor
 import com.example.celestis.ui.utils.ImagePrefetcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toLocalDateTime
 
@@ -23,7 +30,8 @@ sealed interface DiscoverUiState {
         val rangeApod: List<ApodResponse>,
         val searchQuery: String,
         val searchResults: PaginatedSearchState,
-        val isRefreshing: Boolean = false
+        val isRefreshing: Boolean = false,
+        val isOfflineMode: Boolean = false
     ) : DiscoverUiState
     data class Error(val message: String) : DiscoverUiState
 }
@@ -55,7 +63,8 @@ data class RangePaginationState(
 class DiscoverViewModel(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
-    private val context: PlatformContext
+    private val context: PlatformContext,
+    private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
     private val _rangeApod = MutableStateFlow<List<ApodResponse>>(emptyList())
     private val _isRefreshing = MutableStateFlow(false)
@@ -71,31 +80,48 @@ class DiscoverViewModel(
 
     private var searchJob: Job? = null
 
-    val uiState: StateFlow<DiscoverUiState> = MutableStateFlow<DiscoverUiState>(DiscoverUiState.Loading).apply {
-        viewModelScope.launch {
-            // Combine all state flows
-            kotlinx.coroutines.flow.combine(
-                _rangeApod,
-                _searchQuery,
-                _isRefreshing,
-                _errorMessage,
-                searchState
-            ) { range, query, refreshing, error, search ->
-                if (error != null) {
-                    DiscoverUiState.Error(error)
-                } else if (refreshing && range.isEmpty()) {
-                    DiscoverUiState.Loading
-                } else {
-                    DiscoverUiState.Success(
-                        rangeApod = range,
-                        searchQuery = query,
-                        searchResults = search,
-                        isRefreshing = refreshing
-                    )
-                }
-            }.collect { value = it }
-        }
+    // Group data-related flows
+    private val dataState = combine(
+        _rangeApod,
+        _searchQuery,
+        searchState
+    ) { range, query, search ->
+        Triple(range, query, search)
     }
+
+    // Group UI state-related flows
+    private val controlState = combine(
+        _isRefreshing,
+        _errorMessage,
+        networkMonitor.isOnline
+    ) { refreshing, error, isOnline ->
+        Triple(refreshing, error, isOnline)
+    }
+
+    // Combine the two grouped flows for final UI state
+    val uiState: StateFlow<DiscoverUiState> = combine(
+        dataState,
+        controlState
+    ) { data, control ->
+        val (range, query, search) = data
+        val (refreshing, error, isOnline) = control
+        
+        when {
+            error != null -> DiscoverUiState.Error(error)
+            refreshing && range.isEmpty() -> DiscoverUiState.Loading
+            else -> DiscoverUiState.Success(
+                rangeApod = range,
+                searchQuery = query,
+                searchResults = search,
+                isRefreshing = refreshing,
+                isOfflineMode = !isOnline
+            )
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = DiscoverUiState.Loading
+    )
 
     init {
         // Initial Fetch for the Discovery Feed
@@ -131,24 +157,39 @@ class DiscoverViewModel(
     }
 
     fun showRange() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             _isRefreshing.value = true
             _errorMessage.value = null
             try {
-                // Fetch random APODs to fill the discovery feed
-                //TODO: get the current month
-                val randomFeed = repository.fetchRange("2026-02-11", "2026-03-11")
+                val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
+                
+                val randomFeed = if (isOnline) {
+                    // Online: Fetch from API
+                    repository.fetchRange("2026-02-11", "2026-03-11")
+                } else {
+                    // Offline: Load all cached APODs
+                    repository.observeAllCachedApods().firstOrNull()
+                        ?.map { it.toResponse() } ?: emptyList()
+                }
+                
                 _rangeApod.value = randomFeed
                 
-                // PREDICTIVE PREFETCHING: Load first batch of images immediately
-                if (randomFeed.isNotEmpty()) {
+                // PREDICTIVE PREFETCHING: Load first batch of images immediately (skip if offline)
+                if (randomFeed.isNotEmpty() && isOnline) {
                     val firstBatch = randomFeed.take(12) // Prefetch first 12 images
                     prefetchVisibleImages(firstBatch)
                 }
             } catch (e: Exception) {
-                // Only show error if we have NO local results to show
-                if (_rangeApod.value.isEmpty()) {
-                    _errorMessage.value = "Failed to load discovery feed. Check connection."
+                // Fallback to cached data
+                try {
+                    val cachedApods = repository.observeAllCachedApods().firstOrNull()
+                        ?.map { it.toResponse() } ?: emptyList()
+                    _rangeApod.value = cachedApods
+                } catch (cacheError: Exception) {
+                    // Only show error if we have NO local results to show
+                    if (_rangeApod.value.isEmpty()) {
+                        _errorMessage.value = "Failed to load discovery feed. Check connection."
+                    }
                 }
             } finally {
                 _isRefreshing.value = false

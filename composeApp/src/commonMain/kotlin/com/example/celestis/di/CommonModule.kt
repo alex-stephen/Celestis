@@ -5,6 +5,7 @@ import coil3.annotation.ExperimentalCoilApi
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.ktor3.KtorNetworkFetcherFactory
+import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.size.Precision
 import com.example.celestis.Platform
@@ -62,6 +63,9 @@ val commonModule = module {
                     .maxSizeBytes(512L * 1024L * 1024L) // 512MB Disk Cache
                     .build()
             }
+            .diskCachePolicy(CachePolicy.ENABLED)
+            .networkCachePolicy(CachePolicy.ENABLED)
+            .memoryCachePolicy(CachePolicy.ENABLED)
             // Optimization: Don't force exact pixel matching for HD popups
             // to save memory on downsampling
             .precision(Precision.INEXACT)
@@ -69,7 +73,7 @@ val commonModule = module {
             .build()
     }
 
-    viewModel { DiscoverViewModel(get(), get(), get<Platform>().context) }
+    viewModel { DiscoverViewModel(get(), get(), get<Platform>().context, get())}
 
     viewModel { FavoriteViewModel(get()) }
 
