@@ -83,10 +83,16 @@ class ApodRepository(
     }
 
     /**
-     * Fills a specific date range. Perfect for a "Calendar" view.
+     * Fills a specific date range with pagination support.
+     * Perfect for a "Calendar" view with infinite scroll.
      */
-    suspend fun fetchRange(start: String, end: String): List<ApodResponse> = withContext(Dispatchers.IO) {
-        val remotes = api.getApodRange(start, end)
+    suspend fun fetchRange(
+        start: String,
+        end: String,
+        page: Int = 0,
+        limit: Int = 30
+    ): List<ApodResponse> = withContext(Dispatchers.IO) {
+        val remotes = api.getApodRange(start, end, page, limit)
 
         database.transaction {
             remotes.forEach { apod ->

@@ -40,6 +40,17 @@ data class PaginatedSearchState(
     val error: String? = null
 )
 
+/**
+ * Pagination state for date range queries
+ */
+data class RangePaginationState(
+    val startDate: String = "",
+    val endDate: String = "",
+    val page: Int = 0,
+    val hasMore: Boolean = false,
+    val isLoadingMore: Boolean = false
+)
+
 @OptIn(FlowPreview::class)
 class DiscoverViewModel(
     private val repository: ApodRepository,
@@ -55,6 +66,8 @@ class DiscoverViewModel(
 
     private val _searchState = MutableStateFlow(PaginatedSearchState())
     private val searchState: StateFlow<PaginatedSearchState> = _searchState.asStateFlow()
+
+    private val _rangePaginationState = MutableStateFlow(RangePaginationState())
 
     private var searchJob: Job? = null
 
@@ -120,7 +133,6 @@ class DiscoverViewModel(
     fun showRange() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            _rangeApod.value = emptyList()
             _errorMessage.value = null
             try {
                 // Fetch random APODs to fill the discovery feed
@@ -227,14 +239,37 @@ class DiscoverViewModel(
         viewModelScope.launch {
             _isRefreshing.value = true
             _errorMessage.value = null
+            
+            // Clear old range data to show shimmer for new selection
+            _rangeApod.value = emptyList()
+            
             try {
                 // Convert millis to YYYY-MM-DD
                 val startDate = formatMillisToIso(startDateMillis)
                 // If endDate is null or same as start, fetch just one day
                 val endDate = if (endDateMillis != null) formatMillisToIso(endDateMillis) else startDate
 
-                val results = repository.fetchRange(startDate, endDate)
+                // Reset pagination state with new date range
+                _rangePaginationState.value = RangePaginationState(
+                    startDate = startDate,
+                    endDate = endDate,
+                    page = 0,
+                    hasMore = false,
+                    isLoadingMore = false
+                )
+
+                // Fetch first page (page 0)
+                val results = repository.fetchRange(startDate, endDate, page = 0, limit = 30)
+                
+                // Replace (not append) the range results
                 _rangeApod.value = results
+                
+                // Update pagination state
+                _rangePaginationState.value = _rangePaginationState.value.copy(
+                    page = 1, // Next page to fetch
+                    hasMore = results.size >= 30 // If we got a full page, there might be more
+                )
+                
                 // Clear search query to show the range results
                 _searchQuery.value = ""
                 
@@ -246,6 +281,55 @@ class DiscoverViewModel(
                 _errorMessage.value = "Failed to fetch dates: ${e.message}"
             } finally {
                 _isRefreshing.value = false
+            }
+        }
+    }
+
+    /**
+     * Load more results for the current date range (infinite scroll).
+     * Call this when user scrolls near the bottom of the list.
+     */
+    fun loadMoreRangeResults() {
+        val state = _rangePaginationState.value
+        
+        // Guard clauses: prevent concurrent loads or loading when no more data
+        if (state.isLoadingMore || !state.hasMore) return
+        if (state.startDate.isEmpty()) return
+        
+        viewModelScope.launch {
+            // Mark as loading to prevent duplicate requests
+            _rangePaginationState.value = state.copy(isLoadingMore = true)
+            
+            try {
+                // Fetch the next page
+                val newResults = repository.fetchRange(
+                    start = state.startDate,
+                    end = state.endDate,
+                    page = state.page,
+                    limit = 30
+                )
+                
+                // Append new results and deduplicate by date
+                val updatedList = (_rangeApod.value + newResults)
+                    .distinctBy { it.date }
+                
+                _rangeApod.value = updatedList
+                
+                // Update pagination state
+                _rangePaginationState.value = state.copy(
+                    page = state.page + 1,
+                    hasMore = newResults.size >= 30, // Full page = might have more
+                    isLoadingMore = false
+                )
+                
+                // Prefetch new batch of images
+                if (newResults.isNotEmpty()) {
+                    prefetchVisibleImages(newResults.take(12))
+                }
+            } catch (e: Exception) {
+                // Reset loading state on error
+                _rangePaginationState.value = state.copy(isLoadingMore = false)
+                _errorMessage.value = "Failed to load more: ${e.message}"
             }
         }
     }

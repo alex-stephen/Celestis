@@ -36,11 +36,18 @@ class NasaApi(private val client: HttpClient) {
    }
  }
 
- suspend fun getApodRange(start: String, end: String): List<ApodResponse> {
+ suspend fun getApodRange(
+     start: String,
+     end: String,
+     page: Int = 0,
+     limit: Int = 30
+ ): List<ApodResponse> {
      val response = client.get("$baseUrl/range") {
          url {
              parameters.append("start_date", start)
              parameters.append("end_date", end)
+             parameters.append("page", page.toString())
+             parameters.append("limit", limit.toString())
          }
      }
 
