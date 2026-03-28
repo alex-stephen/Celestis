@@ -88,6 +88,7 @@ fun SharedTransitionScope.DiscoverScreen(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onLoadMoreSearchResults: () -> Unit,
+    onLoadMoreRangeResults: () -> Unit,
     onDateRangeSelected: (Long?, Long?) -> Unit,
     windowSizeClass: WindowSizeClass,
     onOpenDrawer: () -> Unit,
@@ -124,6 +125,7 @@ fun SharedTransitionScope.DiscoverScreen(
                         state = state,
                         windowSizeClass = windowSizeClass,
                         onLoadMoreSearchResults = onLoadMoreSearchResults,
+                        onLoadMoreRangeResults = onLoadMoreRangeResults,
                         onPhotoDetailClick = onPhotoDetailClick,
                         animatedVisibilityScope = animatedVisibilityScope,
                         contentPadding = PaddingValues(top = 65.dp, bottom = 80.dp)
@@ -158,6 +160,7 @@ fun SharedTransitionScope.DiscoverScreenGrid(
     state: DiscoverUiState.Success,
     windowSizeClass: WindowSizeClass,
     onLoadMoreSearchResults: () -> Unit,
+    onLoadMoreRangeResults: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
     contentPadding: PaddingValues
@@ -171,14 +174,30 @@ fun SharedTransitionScope.DiscoverScreenGrid(
 
     Column(modifier = Modifier.fillMaxSize()) {
         if (state.searchQuery.isEmpty()) {
-            // MODE A: Discovery Feed (Standard List)
+            // MODE A: Date Range Feed with Pagination
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridCols),
                 contentPadding = contentPadding
             )
             {
-                items(state.rangeApod, key = { it.date }) { apod ->
+                itemsIndexed(
+                    items = state.rangeApod,
+                    key = { _, apod -> apod.date }
+                ) { index, apod ->
                     ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
+                    
+                    // Trigger load more when near end (15 items before the last)
+                    val shouldLoadMore by remember(index, state.rangeApod.size) {
+                        derivedStateOf {
+                            index >= state.rangeApod.size - 15 && state.rangeApod.isNotEmpty()
+                        }
+                    }
+                    
+                    if (shouldLoadMore) {
+                        LaunchedEffect(Unit) {
+                            onLoadMoreRangeResults()
+                        }
+                    }
                 }
             }
         } else {
