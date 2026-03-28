@@ -206,6 +206,24 @@ class ApodRepository(
             .mapToList(Dispatchers.IO)
     }
 
+    /**
+     * Observes all cached APODs from the local database.
+     * Used for offline mode to display all available content.
+     */
+    fun observeAllCachedApods(): Flow<List<ApodEntity>> {
+        return queries.getAllApods()
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+    }
+
+    /**
+     * Gets random APODs from the local cache.
+     * Used for offline mode random button functionality.
+     */
+    suspend fun getRandomCachedApods(count: Int): List<ApodEntity> = withContext(Dispatchers.Default) {
+        queries.getRandomCachedApods(count.toLong()).executeAsList()
+    }
+
     // Extensions for cleaner Repository code
     fun ApodEntity.getTagsList(): List<String> {
         return try {

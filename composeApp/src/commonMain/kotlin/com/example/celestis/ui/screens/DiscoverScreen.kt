@@ -1,5 +1,6 @@
 package com.example.celestis.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -121,29 +122,48 @@ fun SharedTransitionScope.DiscoverScreen(
 
                 is DiscoverUiState.Error -> DiscoverScreenError(state)
                 is DiscoverUiState.Success -> {
-                    DiscoverScreenGrid(
-                        state = state,
-                        windowSizeClass = windowSizeClass,
-                        onLoadMoreSearchResults = onLoadMoreSearchResults,
-                        onLoadMoreRangeResults = onLoadMoreRangeResults,
-                        onPhotoDetailClick = onPhotoDetailClick,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        contentPadding = PaddingValues(top = 65.dp, bottom = 80.dp)
-                    )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        DiscoverScreenGrid(
+                            state = state,
+                            windowSizeClass = windowSizeClass,
+                            onLoadMoreSearchResults = onLoadMoreSearchResults,
+                            onLoadMoreRangeResults = onLoadMoreRangeResults,
+                            onPhotoDetailClick = onPhotoDetailClick,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            contentPadding = PaddingValues(
+                                top = if (state.isOfflineMode) 127.dp else 65.dp,
+                                bottom = 80.dp
+                            )
+                        )
+                    }
                 }
             }
         }
-        
-        DiscoverSearchAppBar(
-            query = searchQuery,
-            onQueryChange = onQueryChange,
-            onSearch = onSearch,
-            isLandscape = isLandscape,
-            onOpenDrawer = onOpenDrawer,
-            onOpenDatePicker = { showDatePicker = true },
-            hazeState = hazeState
-        )
+
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            DiscoverSearchAppBar(
+                query = searchQuery,
+                onQueryChange = onQueryChange,
+                onSearch = onSearch,
+                isLandscape = isLandscape,
+                onOpenDrawer = onOpenDrawer,
+                onOpenDatePicker = { showDatePicker = true },
+                hazeState = hazeState
+            )
+
+            // Smooth drop-down animation for network loss
+            AnimatedVisibility(
+                visible = uiState is DiscoverUiState.Success && uiState.isOfflineMode,
+                enter = androidx.compose.animation.slideInVertically { -it } + androidx.compose.animation.expandVertically(),
+                exit = androidx.compose.animation.slideOutVertically { -it } + androidx.compose.animation.shrinkVertically()
+            ) {
+                OfflineModeBanner()
+            }
+        }
     }
+
     if (showDatePicker) {
         CelestisRangePicker(
             onDismiss = { showDatePicker = false },
@@ -572,5 +592,38 @@ fun DiscoverScreenError(state: DiscoverUiState.Error) {
 //        Button() {
 //            Text("Retry")
 //        }
+    }
+}
+
+@Composable
+fun OfflineModeBanner() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.NetworkWifi,
+                contentDescription = "Offline",
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Offline Mode - No Network Connection",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
     }
 }

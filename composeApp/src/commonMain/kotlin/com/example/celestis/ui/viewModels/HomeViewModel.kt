@@ -7,6 +7,7 @@ import coil3.PlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.example.celestis.data.ApodRepository
+import com.example.celestis.data.toResponse
 import com.example.celestis.model.ApodResponse
 import com.example.celestis.network.NetworkMonitor
 import com.example.celestis.ui.utils.ImagePrefetcher
@@ -30,7 +31,8 @@ sealed interface HomeUiState {
     data class Success(
         val todayApod: ApodResponse,
         val randomApod: ApodResponse? = null,
-        val selectedHdUrl: String? = null
+        val selectedHdUrl: String? = null,
+        val isOfflineMode: Boolean = false
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -45,7 +47,7 @@ class HomeViewModel(
 
     private val todayApodFlow = repository.observeLatestApod()
 
-    // 2. The Random Stream (Managed in memory, then saved if favorited)
+    // The Random Stream (Managed in memory, then saved if favorited)
     private val _randomApod = MutableStateFlow<ApodResponse?>(null)
     private val _selectedHdUrl = MutableStateFlow<String?>(null)
     
@@ -53,19 +55,21 @@ class HomeViewModel(
     private val _isImageLoading = MutableStateFlow(false)
     val isImageLoading: StateFlow<Boolean> = _isImageLoading.asStateFlow()
     
-    // Internal State - Derived from today's APOD and current random selection
+    // Internal State - Derived from today's APOD, random selection, and network connectivity
     val uiState: StateFlow<HomeUiState> = combine(
         todayApodFlow,
         _randomApod,
-        _selectedHdUrl
-    ) { today, random, hdUrl ->
+        _selectedHdUrl,
+        networkMonitor.isOnline
+    ) { today, random, hdUrl, isOnline ->
         if (today == null) {
             HomeUiState.Loading
         } else {
             HomeUiState.Success(
                 todayApod = today,
                 randomApod = random,
-                selectedHdUrl = hdUrl
+                selectedHdUrl = hdUrl,
+                isOfflineMode = !isOnline
             )
         }
     }.stateIn(
@@ -136,13 +140,12 @@ class HomeViewModel(
             val next = randomQueue.removeFirst()
             
             // Ensure image is in memory cache before showing
-            val request = coil3.request.ImageRequest.Builder(context)
+            val request = ImageRequest.Builder(context)
                 .data(next.url)
                 .build()
             imageLoader.execute(request)
             
-            kotlinx.coroutines.delay(150)
-            
+
             _randomApod.value = next
             _isShowingRandom.value = true
             
@@ -180,21 +183,31 @@ class HomeViewModel(
     private fun refillQueue(initial: Boolean = false) {
         if (prefetchJob?.isActive == true) return
 
-        prefetchJob = viewModelScope.launch(Dispatchers.IO) {
+        prefetchJob = viewModelScope.launch(Dispatchers.Default) {
             _isRefilling.value = true
             try {
                 val needed = if (initial) 5 else BATCH_SIZE // Start with 5 for faster initial load
-                val newItems = repository.fetchRandom(needed)
+                val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
+                
+                val newItems = if (isOnline) {
+                    // Online: Fetch from API
+                    repository.fetchRandom(needed)
+                } else {
+                    // Offline: Get random from cache
+                    repository.getRandomCachedApods(needed).map { it.toResponse() }
+                }
 
                 randomQueue.addAll(newItems)
                 
-                // Cache images in background
-                ImagePrefetcher.prefetchApodBatch(
-                    imageLoader = imageLoader,
-                    context = context,
-                    apods = newItems,
-                    scope = this
-                )
+                // Cache images in background (only if online, images should already be cached if offline)
+                if (isOnline) {
+                    ImagePrefetcher.prefetchApodBatch(
+                        imageLoader = imageLoader,
+                        context = context,
+                        apods = newItems,
+                        scope = this
+                    )
+                }
 
                 if (initial && _randomApod.value == null) {
                     _randomApod.value = randomQueue.removeFirstOrNull()
@@ -203,12 +216,28 @@ class HomeViewModel(
                 // If we initially only fetched 5, fill up the rest of the target capacity now
                 if (initial && randomQueue.size < TARGET_CAPACITY) {
                      val remaining = TARGET_CAPACITY - randomQueue.size
-                     val moreItems = repository.fetchRandom(remaining)
+                     val moreItems = if (isOnline) {
+                         repository.fetchRandom(remaining)
+                     } else {
+                         repository.getRandomCachedApods(remaining).map { it.toResponse() }
+                     }
                      randomQueue.addAll(moreItems)
-                     ImagePrefetcher.prefetchApodBatch(imageLoader, context, moreItems, this)
+                     if (isOnline) {
+                         ImagePrefetcher.prefetchApodBatch(imageLoader, context, moreItems, this)
+                     }
                 }
             } catch (e: Exception) {
-                // Network error - silent fallback
+                // Network error - silent fallback to cache
+                try {
+                    val cachedItems = repository.getRandomCachedApods(if (initial) 5 else BATCH_SIZE)
+                        .map { it.toResponse() }
+                    randomQueue.addAll(cachedItems)
+                    if (initial && _randomApod.value == null) {
+                        _randomApod.value = randomQueue.removeFirstOrNull()
+                    }
+                } catch (cacheError: Exception) {
+                    // No cached items available
+                }
             } finally {
                 _isRefilling.value = false
             }
@@ -216,11 +245,23 @@ class HomeViewModel(
     }
 
     private fun fetchEmergencySingle() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.Default) {
             _isRefilling.value = true
             try {
-                val item = repository.fetchRandom(1).firstOrNull()
+                val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
+                val item = if (isOnline) {
+                    repository.fetchRandom(1).firstOrNull()
+                } else {
+                    repository.getRandomCachedApods(1).firstOrNull()?.toResponse()
+                }
                 _randomApod.value = item
+            } catch (e: Exception) {
+                // Try cache as fallback
+                try {
+                    _randomApod.value = repository.getRandomCachedApods(1).firstOrNull()?.toResponse()
+                } catch (cacheError: Exception) {
+                    // No cached items
+                }
             } finally {
                 _isRefilling.value = false
                 refillQueue() 

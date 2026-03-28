@@ -13,12 +13,17 @@ import platform.darwin.dispatch_get_main_queue
 import kotlinx.cinterop.CPointer
 import platform.Network.nw_path_t
 import platform.Network.nw_path_is_constrained
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * iOS implementation of NetworkMonitor using NWPathMonitor.
  * 
  * - isWifiActive: Checks if the current path uses Wi-Fi interface
  * - isLowDataMode: Checks the isConstrained property (detects iOS Low Data Mode)
+ * - isOnline: Flow that emits connectivity state changes
  */
 @OptIn(ExperimentalForeignApi::class)
 actual class NetworkMonitor {
@@ -60,4 +65,26 @@ actual class NetworkMonitor {
             // isConstrained returns true when iOS Low Data Mode is enabled
             return nw_path_is_constrained(path)
         }
+    
+    actual val isOnline: Flow<Boolean> = callbackFlow {
+        val monitor = nw_path_monitor_create()
+        
+        nw_path_monitor_set_update_handler(monitor) { path ->
+            val status = nw_path_get_status(path)
+            val isConnected = status == nw_path_status_satisfied
+            trySend(isConnected)
+        }
+        
+        nw_path_monitor_set_queue(monitor, dispatch_get_main_queue())
+        nw_path_monitor_start(monitor)
+        
+        // Emit initial state
+        val initialPath = currentPath
+        val initialStatus = initialPath?.let { nw_path_get_status(it) }
+        trySend(initialStatus == nw_path_status_satisfied)
+        
+        awaitClose {
+            platform.Network.nw_path_monitor_cancel(monitor)
+        }
+    }.distinctUntilChanged()
 }

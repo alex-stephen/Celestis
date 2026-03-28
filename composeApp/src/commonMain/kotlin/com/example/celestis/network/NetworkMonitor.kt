@@ -1,5 +1,7 @@
 package com.example.celestis.network
 
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Platform-aware network monitoring to determine connection type and data-saving mode.
  * 
@@ -20,4 +22,10 @@ expect class NetworkMonitor {
      * - iOS: Low Data Mode is enabled
      */
     val isLowDataMode: Boolean
+    
+    /**
+     * Flow that emits true when the device has any network connectivity,
+     * false when offline. Updates automatically when network state changes.
+     */
+    val isOnline: Flow<Boolean>
 }
