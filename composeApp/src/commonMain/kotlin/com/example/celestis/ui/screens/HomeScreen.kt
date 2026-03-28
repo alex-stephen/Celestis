@@ -68,6 +68,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -276,22 +277,44 @@ fun HomeScreenSuccess(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
+                .then(
+                    // Only make scrollable if not a video, or start scroll below video area
+                    if (!displayApod.isVideo()) {
+                        Modifier.verticalScroll(scrollState)
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
-            Spacer(
+            // For videos, use a Box instead of Spacer to avoid blocking touch events
+            if (!displayApod.isVideo()) {
+                Spacer(
+                    modifier = Modifier
+                        .height(screenHeight - peekHeight)
+                        .fillMaxWidth()
+                        .clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
+                )
+            } else {
+                // For videos, create the space without any interactivity
+                Spacer(
+                    modifier = Modifier
+                        .height(screenHeight - peekHeight)
+                        .fillMaxWidth()
+                )
+            }
+
+            Box(
                 modifier = Modifier
-                    .height(screenHeight - peekHeight)
                     .fillMaxWidth()
                     .then(
-                        if (!displayApod.isVideo()) {
-                            Modifier.clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
+                        // Add scroll only to the glass sheet section when displaying videos
+                        if (displayApod.isVideo()) {
+                            Modifier.verticalScroll(scrollState)
                         } else {
                             Modifier
                         }
                     )
-            )
-
-            Box(modifier = Modifier.fillMaxWidth()) {
+            ) {
 
                 // GLASS SHEET CONTENT
                 Column(
