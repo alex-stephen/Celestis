@@ -138,7 +138,7 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
             )
         }
         
-        // Semi-transparent overlay at the bottom for text readability
+        // Title overlay at the bottom
         Column(
             modifier = GlanceModifier
                 .fillMaxSize(),
@@ -147,7 +147,7 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
             // Push content to bottom
             Spacer(modifier = GlanceModifier.defaultWeight())
             
-            // Text content with dark background
+            // Text content with semi-transparent background
             Column(
                 modifier = GlanceModifier
                     .fillMaxWidth()
