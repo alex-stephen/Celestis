@@ -41,6 +41,24 @@ class ApodRepository(
             }
     }
 
+    /**
+     * Widget-optimized Flow that emits the latest cached APOD entity.
+     * This is specifically designed for widget consumption where we need:
+     * - Direct access to ApodEntity (not mapped to ApodResponse)
+     * - Reactive updates when new APOD is synced
+     * - Minimal processing overhead
+     * 
+     * Widgets should observe this Flow and update their UI when it emits.
+     * The local image path can be constructed as: 
+     * `context.filesDir/apod_images/apod_${entity.date}.jpg`
+     */
+    fun observeLatestApodForWidget(): Flow<ApodEntity?> {
+        return queries.getLatestApod()
+            .asFlow()
+            .mapToOneOrNull(Dispatchers.IO)
+    }
+
+
     suspend fun refreshLatest() = withContext(Dispatchers.IO) {
         try {
             val remote = api.getApodFromServer(null)
