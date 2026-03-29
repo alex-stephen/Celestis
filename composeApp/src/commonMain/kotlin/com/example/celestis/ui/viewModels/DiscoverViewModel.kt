@@ -22,7 +22,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 sealed interface DiscoverUiState {
     object Loading : DiscoverUiState
@@ -164,8 +168,32 @@ class DiscoverViewModel(
                 val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
                 
                 val randomFeed = if (isOnline) {
-                    // Online: Fetch from API
-                    repository.fetchRange("2026-02-11", "2026-03-11")
+                    // Online: Fetch from API with pagination
+                    val now = kotlinx.datetime.Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds())
+                    val today = now.toLocalDateTime(TimeZone.UTC).date
+                    val oneYearAgo = today.minus(1, DateTimeUnit.YEAR)
+
+                    _rangePaginationState.value = RangePaginationState(
+                        startDate = oneYearAgo.toString(),
+                        endDate = today.toString(),
+                        page = 0,
+                        hasMore = false,
+                        isLoadingMore = false
+                    )
+
+                    val results = repository.fetchRange(
+                        start = oneYearAgo.toString(),
+                        end = today.toString(),
+                        page = 0,
+                        limit = 30
+                    )
+                    
+                    _rangePaginationState.value = _rangePaginationState.value.copy(
+                        page = 1,
+                        hasMore = results.size >= 30
+                    )
+                    
+                    results
                 } else {
                     // Offline: Load all cached APODs
                     repository.observeAllCachedApods().firstOrNull()
@@ -174,9 +202,8 @@ class DiscoverViewModel(
                 
                 _rangeApod.value = randomFeed
                 
-                // PREDICTIVE PREFETCHING: Load first batch of images immediately (skip if offline)
                 if (randomFeed.isNotEmpty() && isOnline) {
-                    val firstBatch = randomFeed.take(12) // Prefetch first 12 images
+                    val firstBatch = randomFeed.take(12)
                     prefetchVisibleImages(firstBatch)
                 }
             } catch (e: Exception) {
