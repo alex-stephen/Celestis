@@ -67,7 +67,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.LocalPlatformContext
 import coil3.compose.SubcomposeAsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.size.Precision
 import com.example.celestis.model.ApodResponse
 import com.example.celestis.model.isVideo
 import com.example.celestis.ui.components.CelestisRangePicker
@@ -315,6 +319,43 @@ fun SharedTransitionScope.ApodCard(
     onPhotoDetailClick: (ApodResponse) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
+    val isVideo = remember(apod.date) { apod.isVideo() }
+    val hasNoThumbnail = remember(apod.date, isVideo) { isVideo && apod.thumbnailUrl == null }
+    
+    val imageUrl = remember(apod.date, apod.url, apod.thumbnailUrl, isVideo) {
+        if (isVideo) {
+            // Try to get YouTube thumbnail if it's a YouTube video
+            apod.url?.let { url ->
+                VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                    VideoUrlUtils.getYouTubeThumbnail(videoId)
+                }
+            } ?: apod.thumbnailUrl ?: apod.url
+        } else {
+            apod.url
+        }
+    }
+    
+    val scrimGradient = remember {
+        Brush.verticalGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+            startY = 0f
+        )
+    }
+    
+    // Cache the ImageRequest to avoid rebuilding on every recomposition
+    val context = LocalPlatformContext.current
+    val imageModel = remember(imageUrl) {
+        imageUrl?.let { url ->
+            ImageRequest.Builder(context)
+                .data(url)
+                .size(400, 400)
+                .precision(Precision.INEXACT)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+        }
+    }
+    
     Card(
         onClick = { onPhotoDetailClick(apod) },
         modifier = Modifier
@@ -328,10 +369,6 @@ fun SharedTransitionScope.ApodCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Check if it's a video without thumbnail
-            val isVideo = apod.isVideo()
-            val hasNoThumbnail = isVideo && apod.thumbnailUrl == null
-            
             if (hasNoThumbnail) {
                 // Use VideoPlaceholder for videos without thumbnails
                 VideoPlaceholder(
@@ -342,20 +379,8 @@ fun SharedTransitionScope.ApodCard(
                         .aspectRatio(1f)
                 )
             } else {
-                // For images or videos with thumbnails, use AsyncImage
-                val imageUrl = if (isVideo) {
-                    // Try to get YouTube thumbnail if it's a YouTube video
-                    apod.url?.let { url ->
-                        VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
-                            VideoUrlUtils.getYouTubeThumbnail(videoId)
-                        }
-                    } ?: apod.thumbnailUrl ?: apod.url
-                } else {
-                    apod.url
-                }
-
                 SubcomposeAsyncImage(
-                    model = imageUrl,
+                    model = imageModel,
                     contentDescription = apod.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -426,12 +451,7 @@ fun SharedTransitionScope.ApodCard(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                            startY = 0f // Start gradient at the very top of the box for smooth fade
-                        )
-                    )
+                    .background(scrimGradient)
                     .padding(8.dp)
             ) {
                 Column {

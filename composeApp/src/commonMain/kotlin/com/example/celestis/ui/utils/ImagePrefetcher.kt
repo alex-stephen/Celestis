@@ -11,14 +11,14 @@ import kotlinx.coroutines.launch
 
 /**
  * Utility object for predictive image prefetching.
- * Implements the "Perceived Performance" strategy by preloading HD images
- * and buffering images in the background.
+ * Implements the "Perceived Performance" strategy by preloading images
+ * and buffering images in the background with smart throttling.
  */
 object ImagePrefetcher {
     
     /**
      * Prefetch a batch of APOD images for the buffer queue.
-     * This implements the "Zero-Latency Random" strategy.
+     * This implements the "Zero-Latency Random" strategy with optimized sizing.
      */
     fun prefetchApodBatch(
         imageLoader: ImageLoader,
@@ -41,6 +41,8 @@ object ImagePrefetcher {
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .precision(Precision.INEXACT)
+                        // Add size constraint to reduce memory usage - grid items are small
+                        .size(400, 400)
                         .build()
                     
                     imageLoader.enqueue(request)
