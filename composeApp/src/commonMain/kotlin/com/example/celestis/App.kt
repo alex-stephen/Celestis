@@ -98,7 +98,6 @@ fun App(
                             }
                         },
                         hazeState = hazeState,
-                        bottomPadding = padding.calculateBottomPadding()
                     )
                 }
             }
