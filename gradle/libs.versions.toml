@@ -36,6 +36,7 @@ uuid = "0.8.4"
 material = "1.10.0"
 paging = "3.3.0"
 palette = "1.0.0"
+workManager = "2.9.1"
 
 [libraries]
 androidx-activity-compose-v1124 = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -92,6 +93,7 @@ koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", ver
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 haze = { module = "dev.chrisbanes.haze:haze", version = "1.7.2" }
 androidx-palette = { module = "androidx.palette:palette-ktx", version.ref = "palette" }
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workManager" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

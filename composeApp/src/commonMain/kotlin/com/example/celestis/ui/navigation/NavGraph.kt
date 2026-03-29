@@ -6,7 +6,6 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -26,7 +25,6 @@ fun NavGraph(
     modifier: Modifier = Modifier,
     onOpenDrawer: () -> Unit,
     hazeState: HazeState,
-    bottomPadding: Dp
 ) {
     SharedTransitionLayout {
         NavHost(
@@ -47,7 +45,6 @@ fun NavGraph(
                         navController.navigate(Screen.PhotoDetail(date))
                     },
                     onOpenDrawer = onOpenDrawer,
-                    bottomPadding = bottomPadding
                 )
             }
 

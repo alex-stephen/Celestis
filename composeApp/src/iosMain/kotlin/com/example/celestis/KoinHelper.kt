@@ -2,6 +2,7 @@ package com.example.celestis
 
 import com.example.celestis.di.commonModule
 import com.example.celestis.di.iosModule
+import com.example.celestis.sync.BackgroundSyncManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.context.startKoin
@@ -17,5 +18,24 @@ class KoinHelper : KoinComponent {
 fun initKoinIos() {
     startKoin {
         modules(commonModule, iosModule)
+    }
+}
+
+/**
+ * Helper function for Swift to initialize Koin
+ */
+fun doInitKoin() {
+    initKoinIos()
+}
+
+/**
+ * Helper function for Swift to get BackgroundSyncManager from Koin
+ */
+fun getBackgroundSyncManager(): BackgroundSyncManager? {
+    return try {
+        val helper = KoinHelper()
+        helper.get<BackgroundSyncManager>()
+    } catch (e: Exception) {
+        null
     }
 }

@@ -19,5 +19,9 @@
 	</array>
 	<key>CFBundleIdentifier</key>
 	<string>com.example.celestis</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.example.celestis.refresh</string>
+	</array>
 </dict>
 </plist>
