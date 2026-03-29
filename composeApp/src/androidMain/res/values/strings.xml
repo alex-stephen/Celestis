@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Celestis</string>
+    <string name="apod_widget_description">View today\'s Astronomy Picture of the Day on your home screen</string>
 </resources>

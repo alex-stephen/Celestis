@@ -52,6 +52,9 @@ kotlin {
             implementation(libs.core)
             implementation(libs.androidx.palette)
             implementation(libs.androidx.work.runtime.ktx)
+            implementation(libs.androidx.glance)
+            implementation(libs.androidx.glance.appwidget)
+            implementation(libs.androidx.glance.material3)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
