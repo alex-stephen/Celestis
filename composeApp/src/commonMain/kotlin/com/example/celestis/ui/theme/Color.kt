@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 // Deep Space Palette
 private val DeepCharcoal = Color(0xFF0B0E14)
 private val SurfaceContainerColor = Color(0xFF1A1C22)
-private val AstroBlue = Color(0xFF8DCDFF)
+private val AstroBlue = Color(0xFFF48DFF)
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF006494),
@@ -29,8 +29,8 @@ private val DarkColors = darkColorScheme(
 
     secondary = Color(0xFFB5C9DA),
     onSecondary = Color(0xFF203849),
-    secondaryContainer = Color(0xFF364F60),
-    onSecondaryContainer = Color(0xFFD1E5F6),
+    secondaryContainer = Color(0xFFFFFFFF),
+    onSecondaryContainer = Color(0xFF000000),
 
     surface = DeepCharcoal,
     onSurface = Color(0xFFE1E2E5),
