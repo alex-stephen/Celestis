@@ -114,7 +114,7 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridCols),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 65.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(top = 114.dp, bottom = 80.dp)
         ) {
             items(
                 items = state.favorites,
