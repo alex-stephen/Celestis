@@ -233,7 +233,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                 .verticalScroll(scrollState)
         ) {
                 // Add top padding for the AppBar ContentPadding
-                Spacer(modifier = Modifier.height(65.dp))
+                Spacer(modifier = Modifier.height(114.dp))
                 
                 // Check if media is video
                 if (apod.isVideo()) {
