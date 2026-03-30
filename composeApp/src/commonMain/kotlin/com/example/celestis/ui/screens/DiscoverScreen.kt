@@ -135,7 +135,7 @@ fun SharedTransitionScope.DiscoverScreen(
                             onPhotoDetailClick = onPhotoDetailClick,
                             animatedVisibilityScope = animatedVisibilityScope,
                             contentPadding = PaddingValues(
-                                top = if (state.isOfflineMode) 127.dp else 65.dp,
+                                top = if (state.isOfflineMode) 127.dp else 114.dp,
                                 bottom = 80.dp
                             )
                         )
