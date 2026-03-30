@@ -23,8 +23,9 @@ fun NavGraph(
     navController: NavHostController,
     windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
-    onOpenDrawer: () -> Unit,
     hazeState: HazeState,
+    currentPageIndex: Int,
+    onPageSelected: (Int) -> Unit
 ) {
     SharedTransitionLayout {
         NavHost(
@@ -44,7 +45,8 @@ fun NavGraph(
                     onNavigateToDetail = { date ->
                         navController.navigate(Screen.PhotoDetail(date))
                     },
-                    onOpenDrawer = onOpenDrawer,
+                    currentPageIndex = currentPageIndex,
+                    onPageSelected = onPageSelected
                 )
             }
 

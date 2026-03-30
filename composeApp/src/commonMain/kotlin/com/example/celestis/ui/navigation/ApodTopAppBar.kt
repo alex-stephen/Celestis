@@ -3,10 +3,13 @@ package com.example.celestis.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +30,7 @@ fun ApodTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     hazeState: HazeState
 ) {
+    // Outer box: Background extends through status bar
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -49,31 +53,38 @@ fun ApodTopAppBar(
                     strokeWidth = strokeWidthPx
                 )
             }
-            .height(65.dp)
-            .padding(horizontal = 8.dp),
-        contentAlignment = Alignment.Center
     ) {
-        // Left Slot (Menu/Back)
-        if (navigationIcon != null) {
-            Box(Modifier.align(Alignment.CenterStart)) {
-                navigationIcon()
-            }
-        }
-
+        // Inner box: Content padded for status bar
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.75f)
-                .fillMaxHeight()
-                .align(Alignment.Center),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .height(65.dp)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            titleContent()
-        }
+            // Left Slot (Menu/Back)
+            if (navigationIcon != null) {
+                Box(Modifier.align(Alignment.CenterStart)) {
+                    navigationIcon()
+                }
+            }
 
-        Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            verticalAlignment = Alignment.CenterVertically,
-            content = actions
-        )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.75f)
+                    .fillMaxHeight()
+                    .align(Alignment.Center),
+                contentAlignment = Alignment.Center
+            ) {
+                titleContent()
+            }
+
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions
+            )
+        }
     }
 }

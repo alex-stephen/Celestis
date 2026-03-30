@@ -1,3 +1,12 @@
 <resources>
     <string name="app_name">Celestis</string>
+    <string name="apod_widget_description">View today\'s Astronomy Picture of the Day on your home screen</string>
+    
+    <!-- Widget Configuration -->
+    <string name="widget_config_title">Configure APOD Widget</string>
+    <string name="widget_config_show_title">Show title overlay</string>
+    <string name="widget_config_show_title_description">Display the APOD title and date on the widget image</string>
+    <string name="widget_config_info">Your widget will update with the latest Astronomy Picture of the Day.</string>
+    <string name="widget_config_add">Add Widget</string>
+    <string name="widget_config_cancel">Cancel</string>
 </resources>

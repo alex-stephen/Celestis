@@ -35,7 +35,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
@@ -68,7 +67,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,12 +96,12 @@ fun HomeScreen(
     onShowHdImage: (String?, String?) -> Unit,
     onHideHdImage: () -> Unit,
     windowSizeClass: WindowSizeClass,
-    onOpenDrawer: () -> Unit,
     hazeState: HazeState,
     bottomPadding: Dp = 0.dp
 ) {
     // No Scaffold TopBar slot = No unwanted gaps
-    Scaffold() { _ ->
+    Scaffold(
+    ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             when (val state = uiState) {
                 is HomeUiState.Success -> {
@@ -117,7 +115,6 @@ fun HomeScreen(
                         onRefresh = onRefresh,
                         onBackToToday = onBackToToday,
                         onFavoriteToggle = onFavoriteToggle,
-                        onOpenDrawer = onOpenDrawer,
                         hazeState = hazeState,
                         onShowHdImage = onShowHdImage,
                         onHideHdImage = onHideHdImage,
@@ -146,7 +143,6 @@ fun HomeScreenSuccess(
     onRefresh: () -> Unit,
     onBackToToday: () -> Unit,
     onFavoriteToggle: (String, Boolean) -> Unit,
-    onOpenDrawer: () -> Unit,
     hazeState: HazeState,
     onShowHdImage: (String?, String?) -> Unit,
     onHideHdImage: () -> Unit,
@@ -177,7 +173,7 @@ fun HomeScreenSuccess(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val peekHeight = if (isLandscape) 110.dp else 180.dp
+        val peekHeight = if (isLandscape) 110.dp else 194.dp
 
         val density = LocalDensity.current
         val screenHeightPx = with(density) { screenHeight.toPx() }
@@ -432,21 +428,16 @@ fun HomeScreenSuccess(
                     )
                 },
                 hazeState = hazeState,
-                navigationIcon = {
-                    if (isLandscape) {
-                        IconButton(onClick = onOpenDrawer) { Icon(Icons.Default.Menu, "Menu", tint = Color.White) }
-                    }
-                },
                 actions = {
                     // Share button moved to sheet header
-                }
+                },
             )
         }
         
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 84.dp)
+                .padding(top = 131.dp)
                 .padding(horizontal = 16.dp)
                 .graphicsLayer { alpha = topBarAlpha }
         ) {
@@ -489,7 +480,7 @@ fun HomeScreenSuccess(
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + 30.dp)
+                .padding(bottom = bottomPadding + 40.dp)
         ) {
             val infiniteTransition = rememberInfiniteTransition(label = "bounce")
             val offsetY by infiniteTransition.animateFloat(

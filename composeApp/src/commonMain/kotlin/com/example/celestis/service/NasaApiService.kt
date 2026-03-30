@@ -14,11 +14,11 @@ class NasaApi(private val client: HttpClient) {
      url { date?.let { parameters.append("date", it) } }
     }
 
-    // Handle specific Proxy/NASA errors
     return when (response.status.value) {
      200 -> response.body()
-     429 -> throw Exception("NASA Rate limit exceeded. Try again in an hour.")
-     else -> throw Exception("Server Error: ${response.status.description}")
+     429 -> throw Exception("Rate limit reached. Please try again later.")
+     404 -> throw Exception("Photo not found for this date.")
+     else -> throw Exception("Unable to load photo. Please check your connection.")
     }
  }
 
@@ -31,7 +31,7 @@ class NasaApi(private val client: HttpClient) {
     200 -> response.body<List<ApodResponse>>()
     // 204 No Content
     204 -> emptyList()
-    400 -> throw Exception("Invalid count requested: $count")
+    400 -> throw Exception("Unable to fetch photos. Please try again.")
     else -> handleCommonErrors(response)
    }
  }
@@ -55,7 +55,7 @@ class NasaApi(private val client: HttpClient) {
      200 -> response.body<List<ApodResponse>>()
              // 204 No Content
              204 -> emptyList()
-             400 -> throw Exception("Invalid range requested: $start - $end")
+             400 -> throw Exception("Invalid date range. Please select a valid range.")
              else -> handleCommonErrors(response)
          }
  }
@@ -69,20 +69,17 @@ class NasaApi(private val client: HttpClient) {
 
    return when (response.status.value) {
     200 -> response.body<List<ApodResponse>>()
-    // 403 Forbidden: Often occurs if Atlas Search API keys expire or rotate
-    403 -> throw Exception("Search service temporarily unavailable.")
-    // 504 Gateway Timeout: Atlas searches can be heavy
-    504 -> throw Exception("Search timed out. Try a more specific term.")
+    403 -> throw Exception("Search unavailable. Please try again later.")
+    504 -> throw Exception("Search is taking too long. Try a shorter search term.")
     else -> handleCommonErrors(response)
    }
  }
 
  private suspend fun handleCommonErrors(response: io.ktor.client.statement.HttpResponse): Nothing {
-  val errorBody = try { response.body<String>() } catch (e: Exception) { "Unknown Error" }
   when (response.status.value) {
    429 -> throw Exception("Rate limit reached. Please wait a moment.")
    500, 502, 503 -> throw Exception("Server is undergoing maintenance.")
-   else -> throw Exception("Network Error: ${response.status.value} - $errorBody")
+   else -> throw Exception("Unable to connect. Please check your network and try again.")
   }
  }
 

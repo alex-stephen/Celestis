@@ -12,13 +12,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -31,7 +34,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -96,13 +98,10 @@ fun SharedTransitionScope.DiscoverScreen(
     onLoadMoreRangeResults: () -> Unit,
     onDateRangeSelected: (Long?, Long?) -> Unit,
     windowSizeClass: WindowSizeClass,
-    onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
     animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
-    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-
     var showDatePicker by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -126,6 +125,7 @@ fun SharedTransitionScope.DiscoverScreen(
 
                 is DiscoverUiState.Error -> DiscoverScreenError(state)
                 is DiscoverUiState.Success -> {
+                    // PRODUCTION FIX: Show loading overlay when refreshing with existing data
                     Column(modifier = Modifier.fillMaxSize()) {
                         DiscoverScreenGrid(
                             state = state,
@@ -151,8 +151,6 @@ fun SharedTransitionScope.DiscoverScreen(
                 query = searchQuery,
                 onQueryChange = onQueryChange,
                 onSearch = onSearch,
-                isLandscape = isLandscape,
-                onOpenDrawer = onOpenDrawer,
                 onOpenDatePicker = { showDatePicker = true },
                 hazeState = hazeState
             )
@@ -417,10 +415,14 @@ fun SharedTransitionScope.ApodCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp)
-                                    .background(MaterialTheme.colorScheme.errorContainer),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Image Load Failed", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    text = "Unable to load",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
                             }
                         }
                     }
@@ -482,15 +484,13 @@ fun DiscoverSearchAppBar(
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
-    isLandscape: Boolean,
-    onOpenDrawer: () -> Unit,
     onOpenDatePicker: () -> Unit,
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     
-    // A unified header that uses haze for a glassmorphism effect (premium feel)
+    // Outer Surface: Background extends through status bar
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -516,20 +516,15 @@ fun DiscoverSearchAppBar(
         color = Color.Transparent,
         tonalElevation = 0.dp
     ) {
+        // Inner Row: Content padded for status bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .height(65.dp)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Menu Icon (Landscape)
-            if (isLandscape) {
-                IconButton(onClick = onOpenDrawer) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu", tint = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-
             // Sleek, embedded Search Field
             BasicTextField(
                 value = query,
@@ -602,16 +597,25 @@ fun DiscoverSearchAppBar(
 @Composable
 fun DiscoverScreenError(state: DiscoverUiState.Error) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Error: ${state.message}", color = MaterialTheme.colorScheme.error)
-        Spacer(modifier = Modifier.height(8.dp))
-        //implement retry button
-//        Button() {
-//            Text("Retry")
-//        }
+        Text(
+            text = state.message,
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Please try again or check your connection.",
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
     }
 }
 

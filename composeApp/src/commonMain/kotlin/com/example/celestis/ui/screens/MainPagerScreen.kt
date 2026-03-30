@@ -13,6 +13,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -39,10 +40,28 @@ fun MainPagerScreen(
     windowSizeClass: WindowSizeClass,
     hazeState: HazeState,
     onNavigateToDetail: (String) -> Unit,
-    onOpenDrawer: () -> Unit,
+    currentPageIndex: Int,
+    onPageSelected: (Int) -> Unit
 ) {
-    val pagerState = rememberPagerState(pageCount = { NavItem.entries.size })
+    val pagerState = rememberPagerState(
+        initialPage = currentPageIndex,
+        pageCount = { NavItem.entries.size }
+    )
     val scope = rememberCoroutineScope()
+
+    // Sync external page selection with pager state
+    LaunchedEffect(currentPageIndex) {
+        if (pagerState.currentPage != currentPageIndex) {
+            pagerState.animateScrollToPage(currentPageIndex)
+        }
+    }
+
+    // Notify external observers when pager page changes
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage != currentPageIndex) {
+            onPageSelected(pagerState.currentPage)
+        }
+    }
 
     // Track the bottom bar visibility state
     val bottomBarState = remember { BottomBarState() }
@@ -93,7 +112,6 @@ fun MainPagerScreen(
                     onShowHdImage = homeViewModel::showHdImage,
                     onHideHdImage = homeViewModel::hideHdImage,
                     windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
                     hazeState = hazeState,
                     bottomPadding = if (isCompact) customBottomBarHeight else 0.dp
                 )
@@ -107,7 +125,6 @@ fun MainPagerScreen(
                     onLoadMoreRangeResults = discoverViewModel::loadMoreRangeResults,
                     onDateRangeSelected = discoverViewModel::onDateRangeSelected,
                     windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
                     onPhotoDetailClick = {
                         onNavigateToDetail(it.date)
                     },
@@ -117,7 +134,6 @@ fun MainPagerScreen(
                 NavItem.Favorites -> FavoriteScreenWrapper(
                     uiState = favoriteUiState,
                     windowSizeClass = windowSizeClass,
-                    onOpenDrawer = onOpenDrawer,
                     onPhotoDetailClick = {
                         onNavigateToDetail(it.date)
                     },
@@ -166,7 +182,6 @@ private fun DiscoverScreenWrapper(
     onLoadMoreRangeResults: () -> Unit,
     onDateRangeSelected: (Long?, Long?) -> Unit,
     windowSizeClass: WindowSizeClass,
-    onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState
 ) {
@@ -181,7 +196,6 @@ private fun DiscoverScreenWrapper(
                 onLoadMoreRangeResults = onLoadMoreRangeResults,
                 onDateRangeSelected = onDateRangeSelected,
                 windowSizeClass = windowSizeClass,
-                onOpenDrawer = onOpenDrawer,
                 onPhotoDetailClick = onPhotoDetailClick,
                 hazeState = hazeState,
                 animatedVisibilityScope = this
@@ -198,7 +212,6 @@ private fun DiscoverScreenWrapper(
 private fun FavoriteScreenWrapper(
     uiState: FavoriteUiState,
     windowSizeClass: WindowSizeClass,
-    onOpenDrawer: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState
 ) {
@@ -207,7 +220,6 @@ private fun FavoriteScreenWrapper(
             FavoriteScreen(
                 uiState = uiState,
                 windowSizeClass = windowSizeClass,
-                onOpenDrawer = onOpenDrawer,
                 onPhotoDetailClick = onPhotoDetailClick,
                 hazeState = hazeState,
                 animatedVisibilityScope = this
