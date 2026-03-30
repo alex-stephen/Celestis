@@ -192,7 +192,7 @@ class DiscoverViewModel(
                         page = 1,
                         hasMore = results.size >= 30
                     )
-                    
+
                     results
                 } else {
                     // Offline: Load all cached APODs
@@ -373,8 +373,7 @@ class DiscoverViewModel(
                     page = state.page,
                     limit = 30
                 )
-                
-                // Append new results and deduplicate by date
+
                 val updatedList = (_rangeApod.value + newResults)
                     .distinctBy { it.date }
                 
