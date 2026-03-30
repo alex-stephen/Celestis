@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.Hyphens
 import androidx.compose.ui.text.style.LineBreak
@@ -201,9 +202,11 @@ fun SharedTransitionScope.PhotoDetailContent(
     )
 
     val density = LocalDensity.current
-// Calculate pixel offsets for the "Glow Zone"
+    // Calculate pixel offsets for the "Glow Zone"
     val imageBottomPx = with(density) { 400.dp.toPx() }
     val glowDepthPx = with(density) { 600.dp.toPx() } // How far the light travels
+
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = Modifier
@@ -214,9 +217,9 @@ fun SharedTransitionScope.PhotoDetailContent(
                 // The "Eased" Gradient - avoid the "Blob" by adding mid-points
                 val easedGradient = Brush.verticalGradient(
                     0.0f to animatedDominantColor.copy(alpha = 0.5f), // Start at bottom of image
-                    0.3f to animatedDominantColor.copy(alpha = 0.2f), // Quick drop-off
-                    0.6f to animatedDominantColor.copy(alpha = 0.05f), // Long tail
-                    1.0f to Color.Transparent,                        // Full fade
+                    0.3f to animatedDominantColor.copy(alpha = 0.2f),
+                    0.6f to animatedDominantColor.copy(alpha = 0.05f),
+                    1.0f to Color.Transparent,
                     startY = imageBottomPx,
                     endY = imageBottomPx + glowDepthPx
                 )
@@ -234,7 +237,6 @@ fun SharedTransitionScope.PhotoDetailContent(
                 
                 // Check if media is video
                 if (apod.isVideo()) {
-                    // Video Player - embedded with full-screen support
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -331,7 +333,10 @@ fun SharedTransitionScope.PhotoDetailContent(
                             )
                         }
                         AnimatedFavoriteButton(
-                            onFavoriteClick = onFavoriteClick,
+                            onFavoriteClick = {
+                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                onFavoriteClick()
+                            },
                             isFavorite = apod.isFavorite
                         )
                     }

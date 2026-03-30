@@ -213,9 +213,9 @@ class DiscoverViewModel(
                         ?.map { it.toResponse() } ?: emptyList()
                     _rangeApod.value = cachedApods
                 } catch (cacheError: Exception) {
-                    // Only show error if we have NO local results to show
+                    // PRODUCTION: Only show error if we have NO local results to show
                     if (_rangeApod.value.isEmpty()) {
-                        _errorMessage.value = "Failed to load discovery feed. Check connection."
+                        _errorMessage.value = "Unable to load photos. Please check your connection."
                     }
                 }
             } finally {
@@ -293,7 +293,7 @@ class DiscoverViewModel(
                 _searchState.value = currentState.copy(
                     isLoading = false,
                     isLoadingMore = false,
-                    error = e.message ?: "Search failed"
+                    error = e.message ?: "Unable to search. Please try again."
                 )
             } finally {
                 _isRefreshing.value = false
@@ -308,9 +308,7 @@ class DiscoverViewModel(
             _isRefreshing.value = true
             _errorMessage.value = null
             
-            // Clear old range data to show shimmer for new selection
-            _rangeApod.value = emptyList()
-            
+             _rangeApod.value = emptyList()
             try {
                 // Convert millis to YYYY-MM-DD
                 val startDate = formatMillisToIso(startDateMillis)
@@ -329,7 +327,6 @@ class DiscoverViewModel(
                 // Fetch first page (page 0)
                 val results = repository.fetchRange(startDate, endDate, page = 0, limit = 30)
                 
-                // Replace (not append) the range results
                 _rangeApod.value = results
                 
                 // Update pagination state
@@ -346,7 +343,7 @@ class DiscoverViewModel(
                     prefetchVisibleImages(results.take(12))
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Failed to fetch dates: ${e.message}"
+                _errorMessage.value = e.message ?: "Unable to load date range. Please try again."
             } finally {
                 _isRefreshing.value = false
             }
@@ -395,9 +392,8 @@ class DiscoverViewModel(
                     prefetchVisibleImages(newResults.take(12))
                 }
             } catch (e: Exception) {
-                // Reset loading state on error
                 _rangePaginationState.value = state.copy(isLoadingMore = false)
-                _errorMessage.value = "Failed to load more: ${e.message}"
+                _errorMessage.value = e.message ?: "Unable to load more photos."
             }
         }
     }
