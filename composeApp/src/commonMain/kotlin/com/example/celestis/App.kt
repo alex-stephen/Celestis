@@ -11,8 +11,11 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -34,10 +37,10 @@ fun App(
 ) {
     val navController = rememberNavController()
     val windowSizeClass = rememberWindowSizeClass()
-    val widthClass = windowSizeClass.widthSizeClass
     val hazeState = remember { HazeState() }
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+
+    // Track the current page index for drawer/pager synchronization
+    var currentPageIndex by remember { mutableStateOf(0) }
     
     // Get HomeViewModel to call onAppResume when app comes to foreground
     val homeViewModel: HomeViewModel = koinViewModel()
@@ -65,42 +68,22 @@ fun App(
         }
     }
 
-    // Auto-close drawer when switching to Compact (Portrait)
-    LaunchedEffect(widthClass) {
-        if (widthClass == WindowWidthSizeClass.Compact && drawerState.isOpen) {
-            drawerState.close()
-        }
-    }
-
     CelestisTheme {
         AdaptiveNavigationWrapper(
             navController = navController,
             windowSizeClass = windowSizeClass,
             hazeState = hazeState,
-            drawerState = drawerState
+            currentPageIndex = currentPageIndex,
+            onPageSelected = { newIndex -> currentPageIndex = newIndex }
         ) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize()
-            ) { padding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                ) {
-                    NavGraph(
-                        navController = navController,
-                        windowSizeClass = windowSizeClass,
-                        modifier = Modifier.fillMaxSize(),
-                        onOpenDrawer = {
-                            // Only allow opening if NOT in portrait
-                            if (widthClass != WindowWidthSizeClass.Compact) {
-                                scope.launch { drawerState.open() }
-                            }
-                        },
-                        hazeState = hazeState,
-                    )
-                }
-            }
+            NavGraph(
+                navController = navController,
+                windowSizeClass = windowSizeClass,
+                modifier = Modifier.fillMaxSize(),
+                hazeState = hazeState,
+                currentPageIndex = currentPageIndex,
+                onPageSelected = { newIndex -> currentPageIndex = newIndex }
+            )
         }
     }
 }

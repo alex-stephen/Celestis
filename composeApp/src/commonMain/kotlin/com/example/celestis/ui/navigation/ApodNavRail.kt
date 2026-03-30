@@ -1,61 +1,51 @@
 package com.example.celestis.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.TravelExplore
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Text
+import androidx.compose.material3.NavigationRailDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
+/**
+ * Professional Navigation Rail with edge-to-edge design matching ApodBottomNavBar.
+ */
 @Composable
 fun ApodNavRail(
-    navController: NavHostController,
+    currentPageIndex: Int,
+    onPageSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
     NavigationRail(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer
-    ) {
-        val items = listOf(
-            Triple(Screen.Home, Icons.Default.Home, "Home"),
-            Triple(Screen.Discover, Icons.Default.TravelExplore, "Discover"),
-            Triple(Screen.Favorites, Icons.Default.Favorite, "Saved")
-        )
+        modifier = modifier
+            .fillMaxHeight()
+            .width(120.dp)
+            .drawBehind {
+                val strokeWidthPx = 1.dp.toPx()
+                val horizontalOffset = size.width - strokeWidthPx / 2
 
-        items.forEach { (screen, icon, label) ->
-            val isInHierarchy = currentDestination?.hierarchy?.any { it.hasRoute(screen::class) } == true
-            
-            NavigationRailItem(
-                selected = isInHierarchy,
-                onClick = {
-                    if (isInHierarchy) {
-                        // Already in this section's hierarchy - pop back to root
-                        navController.popBackStack(route = screen, inclusive = false)
-                    } else {
-                        // Navigate to new section
-                        navController.navigate(screen) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                },
-                icon = { Icon(icon, contentDescription = label) },
-                label = { Text(label) }
+                drawLine(
+                    color = Color.White.copy(alpha = 0.15f),
+                    start = Offset(horizontalOffset, 0f),
+                    end = Offset(horizontalOffset, size.height),
+                    strokeWidth = strokeWidthPx
+                )
+            },
+        containerColor = Color.Black,
+        contentColor = MaterialTheme.colorScheme.background,
+        windowInsets = NavigationRailDefaults.windowInsets
+    ) {
+        NavItem.entries.forEachIndexed { index, item ->
+            CustomNavItem(
+                selected = currentPageIndex == index,
+                onClick = { onPageSelected(index) },
+                icon = item.icon,
+                label = item.label
             )
         }
     }

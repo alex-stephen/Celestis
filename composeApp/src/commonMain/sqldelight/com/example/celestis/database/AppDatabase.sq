@@ -40,7 +40,7 @@ WHERE isFavorite = 0
 AND date NOT IN (
     SELECT date FROM ApodEntity
     ORDER BY date DESC
-    LIMIT 500
+    LIMIT 100
 );
 
 getLatestApod:
