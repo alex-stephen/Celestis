@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.glance.appwidget.updateAll
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkerParameters
 import coil3.ImageLoader
 import coil3.request.CachePolicy
@@ -52,7 +54,8 @@ class ApodSyncWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            Log.d(TAG, "Starting APOD background sync at 6:00 AM UTC")
+            Log.d(TAG, "===== APOD SYNC STARTED =====")
+            Log.d(TAG, "Sync triggered at: ${Clock.System.now().toLocalDateTime(TimeZone.UTC)}")
 
             // Fetch the latest APOD and cache in database
             repository.refreshLatest()
@@ -66,11 +69,11 @@ class ApodSyncWorker(
 
             when {
                 latestApod == null -> {
-                    Log.w(TAG, "Sync failed: No APOD data received")
+                    Log.w(TAG, "❌ Sync failed: No APOD data received")
                     Result.retry()
                 }
                 latestApod.date != today -> {
-                    Log.w(TAG, "NASA hasn't published today's APOD yet. Got ${latestApod.date}, expected $today")
+                    Log.w(TAG, "⏰ NASA hasn't published today's APOD yet. Got ${latestApod.date}, expected $today")
                     Result.retry()
                 }
                 else -> {
@@ -85,7 +88,7 @@ class ApodSyncWorker(
                         val success = downloadImageToLocalStorage(imageUrl, latestApod.date)
                         
                         if (success) {
-                            Log.d(TAG, "Successfully downloaded image for ${latestApod.date}")
+                            Log.d(TAG, "✅ Successfully downloaded image for ${latestApod.date}")
                             
                             // Also pre-cache in Coil for app usage
                             precacheImageInCoil(imageUrl)
@@ -93,10 +96,11 @@ class ApodSyncWorker(
                             // Clean up old images to prevent storage bloat
                             cleanupOldImages()
                             
-                            // Update all widget instances with new data
+                            // Force immediate widget update
+                            Log.d(TAG, "📱 Triggering widget update...")
                             updateWidgets()
                             
-                            Log.d(TAG, "Sync successful: ${latestApod.title} (${latestApod.date})")
+                            Log.d(TAG, "===== SYNC SUCCESSFUL: ${latestApod.title} (${latestApod.date}) =====")
                             Result.success()
                         } else {
                             Log.w(TAG, "Failed to download image, will retry")
@@ -283,14 +287,25 @@ class ApodSyncWorker(
     /**
      * Updates all APOD widget instances with the latest data.
      * This triggers Glance to re-render all widgets on the home screen.
+     * 
+     * @return true if update was successful, false if there were issues
      */
-    private suspend fun updateWidgets() {
-        try {
+    private suspend fun updateWidgets(): Boolean {
+        return try {
+            Log.d(TAG, "Calling ApodWidget().updateAll()...")
             ApodWidget().updateAll(applicationContext)
-            Log.d(TAG, "Widget update triggered successfully")
+            Log.d(TAG, "updateAll() completed without exceptions")
+            
+            // Force a second update after a short delay to ensure state propagation
+            kotlinx.coroutines.delay(500)
+            ApodWidget().updateAll(applicationContext)
+            Log.d(TAG, "Second updateAll() completed (state propagation)")
+            
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to update widgets", e)
+            Log.e(TAG, "❌ Failed to update widgets", e)
             // Non-critical error, don't fail the sync
+            false
         }
     }
     

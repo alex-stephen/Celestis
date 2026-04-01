@@ -90,3 +90,23 @@ class BottomBarState {
         }
     }
 }
+
+/**
+ * State holder for the Top Bar visibility logic.
+ */
+@Stable
+class TopBarState {
+    var isVisible by mutableStateOf(true)
+
+    val nestedScrollConnection = object : NestedScrollConnection {
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            // available.y < 0 means scrolling down
+            if (available.y < -10f) {
+                isVisible = false
+            } else if (available.y > 10f) {
+                isVisible = true
+            }
+            return Offset.Zero
+        }
+    }
+}

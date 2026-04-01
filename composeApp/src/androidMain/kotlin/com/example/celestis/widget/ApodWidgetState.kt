@@ -29,4 +29,12 @@ sealed class ApodWidgetState {
      * This should rarely happen after the first sync.
      */
     data object NoData : ApodWidgetState()
+    
+    /**
+     * Error occurred while fetching or loading APOD data.
+     * Shows a user-friendly error message with retry option.
+     */
+    data class Error(
+        val message: String = "Unable to load APOD"
+    ) : ApodWidgetState()
 }

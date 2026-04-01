@@ -1,9 +1,12 @@
 package com.example.celestis.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -57,6 +62,7 @@ import com.example.celestis.ui.components.CelestisVideoPlayer
 import com.example.celestis.ui.components.HdImagePopup
 import com.example.celestis.ui.components.LoadingOverlay
 import com.example.celestis.ui.navigation.ApodTopAppBar
+import com.example.celestis.ui.navigation.TopBarState
 import com.example.celestis.ui.utils.extractDominantColor
 import com.example.celestis.ui.viewModels.PhotoDetailUiState
 import dev.chrisbanes.haze.HazeState
@@ -76,7 +82,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
     windowSizeClass: WindowSizeClass,
     onNavigateBack: () -> Unit,
     hazeState: HazeState,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
 ) {
 
     LaunchedEffect(date) {
@@ -107,6 +114,9 @@ fun SharedTransitionScope.PhotoDetailScreen(
                 }
 
                 is PhotoDetailUiState.Success -> {
+                    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+                    val shouldHideTopBar = isLandscape && state.selectedHdUrl != null
+                    
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -126,8 +136,48 @@ fun SharedTransitionScope.PhotoDetailScreen(
                             hazeState = hazeState,
                             onNavigateBack = onNavigateBack,
                             onShare = onShare,
-                            animatedVisibilityScope = animatedVisibilityScope
+                            windowSizeClass = windowSizeClass,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            topBarState = topBarState
                         )
+                    }
+                    
+                    // Top App Bar overlay - hide in landscape when HD popup is open, or when scrolling
+                    if (!shouldHideTopBar) {
+                        AnimatedVisibility(
+                            visible = topBarState.isVisible,
+                            enter = slideInVertically { -it },
+                            exit = slideOutVertically { -it }
+                        ) {
+                            ApodTopAppBar(
+                                titleContent = {
+                                    Text(
+                                        text = "PHOTO DETAIL",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.White
+                                    )
+                                },
+                                navigationIcon = {
+                                    IconButton(onClick = onNavigateBack) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back",
+                                            tint = Color.White
+                                        )
+                                    }
+                                },
+                                actions = {
+                                    IconButton(onClick = onShare) {
+                                        Icon(
+                                            imageVector = Icons.Default.Share,
+                                            contentDescription = "Share",
+                                            tint = Color.White
+                                        )
+                                    }
+                                },
+                                hazeState = hazeState
+                            )
+                        }
                     }
                 }
 
@@ -144,35 +194,6 @@ fun SharedTransitionScope.PhotoDetailScreen(
                     }
                 }
             }
-            // Top App Bar overlay
-            ApodTopAppBar(
-                titleContent = {
-                    Text(
-                        text = "PHOTO DETAIL",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onShare) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = Color.White
-                        )
-                    }
-                },
-                hazeState = hazeState
-            )
         }
     }
 }
@@ -187,8 +208,12 @@ fun SharedTransitionScope.PhotoDetailContent(
     onHideHdImage: () -> Unit,
     onNavigateBack: () -> Unit,
     onShare: () -> Unit,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    windowSizeClass: WindowSizeClass,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
 ) {
+    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+
     val apod = state.apod
     val scrollState = rememberScrollState()
     val coroutineScope = rememberCoroutineScope()
@@ -230,10 +255,11 @@ fun SharedTransitionScope.PhotoDetailContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .nestedScroll(topBarState.nestedScrollConnection)
                 .verticalScroll(scrollState)
         ) {
                 // Add top padding for the AppBar ContentPadding
-                Spacer(modifier = Modifier.height(114.dp))
+                Spacer(modifier = Modifier.height(if (isLandscape) 92.dp else 114.dp,))
                 
                 // Check if media is video
                 if (apod.isVideo()) {

@@ -5,6 +5,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -60,6 +61,7 @@ fun NavGraph(
                 val photoDetail: Screen.PhotoDetail = backStackEntry.toRoute()
                 val viewModel: PhotoDetailViewModel = koinViewModel()
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+                val topBarState = remember { TopBarState() }
                 PhotoDetailScreen(
                     date = photoDetail.date,
                     state = uiState,
@@ -71,7 +73,8 @@ fun NavGraph(
                     windowSizeClass = windowSizeClass,
                     onNavigateBack = { navController.navigateUp() },
                     hazeState = hazeState,
-                    animatedVisibilityScope = this
+                    animatedVisibilityScope = this,
+                    topBarState = topBarState
                 )
             }
         }
