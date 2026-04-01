@@ -6,8 +6,10 @@ import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import com.example.celestis.sync.ApodSyncWorker
 
@@ -49,9 +51,10 @@ class ApodWidgetReceiver : GlanceAppWidgetReceiver() {
     }
     
     /**
-     * Triggers an immediate one-time sync to populate the widget with data.
+     * Triggers an immediate expedited one-time sync to populate the widget with data.
+     * Uses expedited work to ensure it runs quickly even in Doze mode.
      * This ensures the widget shows content immediately instead of waiting
-     * until the scheduled 6:00 AM UTC sync.
+     * until the scheduled 5:00 AM UTC sync.
      */
     private fun triggerImmediateSync(context: Context) {
         val constraints = Constraints.Builder()
@@ -60,11 +63,17 @@ class ApodWidgetReceiver : GlanceAppWidgetReceiver() {
         
         val immediateSync = OneTimeWorkRequestBuilder<ApodSyncWorker>()
             .setConstraints(constraints)
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag(IMMEDIATE_SYNC_TAG)
             .build()
         
-        WorkManager.getInstance(context).enqueue(immediateSync)
-        Log.d(TAG, "Immediate sync work enqueued")
+        // Use unique work to prevent duplicate requests
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            IMMEDIATE_SYNC_TAG,
+            ExistingWorkPolicy.KEEP,
+            immediateSync
+        )
+        Log.d(TAG, "Expedited immediate sync work enqueued")
     }
     
     companion object {

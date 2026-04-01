@@ -24,9 +24,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import com.example.celestis.model.ApodResponse
 import com.example.celestis.ui.navigation.ApodTopAppBar
+import com.example.celestis.ui.navigation.TopBarState
 import com.example.celestis.ui.viewModels.FavoriteUiState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -38,7 +40,8 @@ fun SharedTransitionScope.FavoriteScreen(
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
 ) {
 
     Box(
@@ -65,26 +68,33 @@ fun SharedTransitionScope.FavoriteScreen(
                         state = state,
                         windowSizeClass = windowSizeClass,
                         onPhotoDetailClick = onPhotoDetailClick,
-                        animatedVisibilityScope = animatedVisibilityScope
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        topBarState = topBarState
                     )
                 }
             }
         }
-        ApodTopAppBar(
-            titleContent = {
-                Box(
-                    modifier = Modifier.fillMaxHeight(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "FAVORITES",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                    )
-                }
-            },
-            hazeState = hazeState,
-        )
+        androidx.compose.animation.AnimatedVisibility(
+            visible = topBarState.isVisible,
+            enter = androidx.compose.animation.slideInVertically { -it },
+            exit = androidx.compose.animation.slideOutVertically { -it }
+        ) {
+            ApodTopAppBar(
+                titleContent = {
+                    Box(
+                        modifier = Modifier.fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "FAVORITES",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                        )
+                    }
+                },
+                hazeState = hazeState,
+            )
+        }
     }
 }
 
@@ -99,9 +109,10 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
     state: FavoriteUiState.Success,
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
 ) {
-
+    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
     val gridCols = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 2
         WindowWidthSizeClass.Medium -> 3
@@ -113,8 +124,10 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
     ) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(gridCols),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 114.dp, bottom = 80.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(topBarState.nestedScrollConnection),
+            contentPadding = PaddingValues(top = if (isLandscape) 92.dp else 114.dp, bottom = 80.dp)
         ) {
             items(
                 items = state.favorites,

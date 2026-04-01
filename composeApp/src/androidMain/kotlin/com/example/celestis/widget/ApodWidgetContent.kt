@@ -65,6 +65,9 @@ fun ApodWidgetContent() {
         is ApodWidgetState.NoData -> {
             NoDataLayout()
         }
+        is ApodWidgetState.Error -> {
+            ErrorLayout(state.message)
+        }
     }
 }
 
@@ -98,12 +101,16 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
             Box(
                 modifier = GlanceModifier
                     .fillMaxSize()
-                    .background(GlanceTheme.colors.surface),
+                    .background(Color(0xFF1A1A2E)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "🌌",
-                    style = TextStyle(fontSize = 32.sp)
+                    text = "APOD",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        color = ColorProvider(Color.White),
+                        fontWeight = FontWeight.Bold
+                    )
                 )
             }
         }
@@ -184,11 +191,15 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
  */
 @Composable
 private fun LoadingLayout() {
+    val context = LocalContext.current
+    val componentName = ComponentName(context, MainActivity::class.java)
+    
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface),
+            .background(Color(0xFF1A1A2E))
+            .clickable(onClick = actionStartActivity(componentName)),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -196,15 +207,19 @@ private fun LoadingLayout() {
             modifier = GlanceModifier.padding(16.dp)
         ) {
             Text(
-                text = "🌌",
-                style = TextStyle(fontSize = 32.sp)
-            )
-            Spacer(modifier = GlanceModifier.height(8.dp))
-            Text(
-                text = "Loading APOD...",
+                text = "Syncing...",
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 14.sp
+                    color = ColorProvider(Color.White),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            Spacer(modifier = GlanceModifier.height(4.dp))
+            Text(
+                text = "Fetching today's APOD",
+                style = TextStyle(
+                    color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                    fontSize = 12.sp
                 )
             )
         }
@@ -224,7 +239,7 @@ private fun NoDataLayout() {
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
-            .background(GlanceTheme.colors.surface)
+            .background(Color(0xFF1A1A2E))
             .clickable(onClick = actionStartActivity(componentName)),
         contentAlignment = Alignment.Center
     ) {
@@ -233,24 +248,76 @@ private fun NoDataLayout() {
             modifier = GlanceModifier.padding(16.dp)
         ) {
             Text(
-                text = "⭐",
-                style = TextStyle(fontSize = 32.sp)
+                text = "Celestis",
+                style = TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
             Text(
-                text = "Open Celestis",
+                text = "Tap to open app",
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+                    color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                    fontSize = 12.sp
                 )
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
             Text(
-                text = "to sync your first APOD",
+                text = "and sync your first APOD",
                 style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
+                    color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                    fontSize = 11.sp
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Error layout - Shown when there was an error loading the APOD.
+ * Prompts user to check network and try again.
+ */
+@Composable
+private fun ErrorLayout(message: String) {
+    val context = LocalContext.current
+    val componentName = ComponentName(context, MainActivity::class.java)
+    
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .cornerRadius(16.dp)
+            .background(Color(0xFF2E1A1A))
+            .clickable(onClick = actionStartActivity(componentName)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = GlanceModifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Error",
+                style = TextStyle(
+                    color = ColorProvider(Color(0xFFFF6B6B)),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            Spacer(modifier = GlanceModifier.height(8.dp))
+            Text(
+                text = message,
+                style = TextStyle(
+                    color = ColorProvider(Color.White.copy(alpha = 0.9f)),
                     fontSize = 12.sp
+                )
+            )
+            Spacer(modifier = GlanceModifier.height(4.dp))
+            Text(
+                text = "Tap to retry",
+                style = TextStyle(
+                    color = ColorProvider(Color.White.copy(alpha = 0.7f)),
+                    fontSize = 11.sp
                 )
             )
         }

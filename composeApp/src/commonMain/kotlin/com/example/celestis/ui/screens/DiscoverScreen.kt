@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
@@ -79,6 +80,7 @@ import com.example.celestis.model.isVideo
 import com.example.celestis.ui.components.CelestisRangePicker
 import com.example.celestis.ui.components.ShimmerApodGrid
 import com.example.celestis.ui.components.VideoPlaceholder
+import com.example.celestis.ui.navigation.TopBarState
 import com.example.celestis.ui.utils.VideoUrlUtils
 import com.example.celestis.ui.viewModels.DiscoverUiState
 import dev.chrisbanes.haze.HazeState
@@ -101,8 +103,11 @@ fun SharedTransitionScope.DiscoverScreen(
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Background layer with hazeSource (like HomeScreen pattern)
@@ -125,7 +130,6 @@ fun SharedTransitionScope.DiscoverScreen(
 
                 is DiscoverUiState.Error -> DiscoverScreenError(state)
                 is DiscoverUiState.Success -> {
-                    // PRODUCTION FIX: Show loading overlay when refreshing with existing data
                     Column(modifier = Modifier.fillMaxSize()) {
                         DiscoverScreenGrid(
                             state = state,
@@ -134,8 +138,9 @@ fun SharedTransitionScope.DiscoverScreen(
                             onLoadMoreRangeResults = onLoadMoreRangeResults,
                             onPhotoDetailClick = onPhotoDetailClick,
                             animatedVisibilityScope = animatedVisibilityScope,
+                            topBarState = topBarState,
                             contentPadding = PaddingValues(
-                                top = if (state.isOfflineMode) 127.dp else 114.dp,
+                                top = if (state.isOfflineMode) 127.dp else if (isLandscape) 90.dp else 114.dp,
                                 bottom = 80.dp
                             )
                         )
@@ -147,13 +152,20 @@ fun SharedTransitionScope.DiscoverScreen(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            DiscoverSearchAppBar(
-                query = searchQuery,
-                onQueryChange = onQueryChange,
-                onSearch = onSearch,
-                onOpenDatePicker = { showDatePicker = true },
-                hazeState = hazeState
-            )
+            // Animated visibility for the search app bar
+            AnimatedVisibility(
+                visible = topBarState.isVisible,
+                enter = androidx.compose.animation.slideInVertically { -it },
+                exit = androidx.compose.animation.slideOutVertically { -it }
+            ) {
+                DiscoverSearchAppBar(
+                    query = searchQuery,
+                    onQueryChange = onQueryChange,
+                    onSearch = onSearch,
+                    onOpenDatePicker = { showDatePicker = true },
+                    hazeState = hazeState
+                )
+            }
 
             // Smooth drop-down animation for network loss
             AnimatedVisibility(
@@ -185,6 +197,7 @@ fun SharedTransitionScope.DiscoverScreenGrid(
     onLoadMoreRangeResults: () -> Unit,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState,
     contentPadding: PaddingValues
 ) {
 
@@ -199,7 +212,8 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             // MODE A: Date Range Feed with Pagination
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridCols),
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
             )
             {
                 itemsIndexed(
@@ -228,7 +242,8 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridCols),
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
             ) {
                 // Show initial loading
                 if (searchState.isLoading && searchState.items.isEmpty()) {

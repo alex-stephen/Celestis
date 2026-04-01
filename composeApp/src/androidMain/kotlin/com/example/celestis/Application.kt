@@ -2,8 +2,10 @@ package com.example.celestis
 
 import android.app.Application
 import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import com.example.celestis.data.ApodRepository
 import com.example.celestis.di.androidModule
@@ -57,11 +59,16 @@ class CelestisApp : Application() {
                     
                     val immediateSync = OneTimeWorkRequestBuilder<ApodSyncWorker>()
                         .setConstraints(constraints)
+                        .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                         .addTag("initial_sync")
                         .build()
                     
-                    WorkManager.getInstance(applicationContext).enqueue(immediateSync)
-                    android.util.Log.d("CelestisApp", "No cached data found. Triggering initial sync.")
+                    WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                        "initial_sync",
+                        ExistingWorkPolicy.KEEP,
+                        immediateSync
+                    )
+                    android.util.Log.d("CelestisApp", "No cached data found. Triggering expedited initial sync.")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("CelestisApp", "Error checking for cached data", e)

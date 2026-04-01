@@ -26,6 +26,7 @@ import com.example.celestis.model.ApodResponse
 import com.example.celestis.ui.navigation.ApodBottomNavBar
 import com.example.celestis.ui.navigation.BottomBarState
 import com.example.celestis.ui.navigation.NavItem
+import com.example.celestis.ui.navigation.TopBarState
 import com.example.celestis.ui.viewModels.DiscoverUiState
 import com.example.celestis.ui.viewModels.DiscoverViewModel
 import com.example.celestis.ui.viewModels.FavoriteUiState
@@ -65,6 +66,10 @@ fun MainPagerScreen(
 
     // Track the bottom bar visibility state
     val bottomBarState = remember { BottomBarState() }
+    
+    // Track top bar visibility state for Discover and Favorite screens
+    val discoverTopBarState = remember { TopBarState() }
+    val favoriteTopBarState = remember { TopBarState() }
 
     val customBottomBarHeight = 70.dp
 
@@ -128,7 +133,8 @@ fun MainPagerScreen(
                     onPhotoDetailClick = {
                         onNavigateToDetail(it.date)
                     },
-                    hazeState = hazeState
+                    hazeState = hazeState,
+                    topBarState = discoverTopBarState
                 )
 
                 NavItem.Favorites -> FavoriteScreenWrapper(
@@ -137,7 +143,8 @@ fun MainPagerScreen(
                     onPhotoDetailClick = {
                         onNavigateToDetail(it.date)
                     },
-                    hazeState = hazeState
+                    hazeState = hazeState,
+                    topBarState = favoriteTopBarState
                 )
             }
         }
@@ -183,7 +190,8 @@ private fun DiscoverScreenWrapper(
     onDateRangeSelected: (Long?, Long?) -> Unit,
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
-    hazeState: HazeState
+    hazeState: HazeState,
+    topBarState: TopBarState
 ) {
     SharedTransitionLayout {
         AnimatedVisibility(visible = true) {
@@ -198,7 +206,8 @@ private fun DiscoverScreenWrapper(
                 windowSizeClass = windowSizeClass,
                 onPhotoDetailClick = onPhotoDetailClick,
                 hazeState = hazeState,
-                animatedVisibilityScope = this
+                animatedVisibilityScope = this,
+                topBarState = topBarState
             )
         }
     }
@@ -213,7 +222,8 @@ private fun FavoriteScreenWrapper(
     uiState: FavoriteUiState,
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
-    hazeState: HazeState
+    hazeState: HazeState,
+    topBarState: TopBarState
 ) {
     SharedTransitionLayout {
         AnimatedVisibility(visible = true) {
@@ -222,7 +232,8 @@ private fun FavoriteScreenWrapper(
                 windowSizeClass = windowSizeClass,
                 onPhotoDetailClick = onPhotoDetailClick,
                 hazeState = hazeState,
-                animatedVisibilityScope = this
+                animatedVisibilityScope = this,
+                topBarState = topBarState
             )
         }
     }
