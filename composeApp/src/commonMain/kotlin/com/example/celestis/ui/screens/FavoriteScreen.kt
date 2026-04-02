@@ -86,13 +86,14 @@ fun SharedTransitionScope.FavoriteScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "FAVORITES",
+                            text = "FAVOURITES",
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
                         )
                     }
                 },
                 hazeState = hazeState,
+                windowSizeClass = windowSizeClass
             )
         }
     }
@@ -127,7 +128,7 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(topBarState.nestedScrollConnection),
-            contentPadding = PaddingValues(top = if (isLandscape) 92.dp else 114.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(top = if (isLandscape) 69.dp else 114.dp, bottom = 80.dp)
         ) {
             items(
                 items = state.favorites,

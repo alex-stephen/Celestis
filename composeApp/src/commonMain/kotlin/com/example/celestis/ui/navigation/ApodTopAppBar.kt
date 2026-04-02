@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,8 +30,11 @@ fun ApodTopAppBar(
     navigationIcon: (@Composable () -> Unit)? = null,
     titleContent: @Composable () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
+    windowSizeClass: WindowSizeClass? = null,
     hazeState: HazeState
 ) {
+    val isLandscape = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
+    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
     // Outer box: Background extends through status bar
     Box(
         modifier = modifier
@@ -59,9 +64,9 @@ fun ApodTopAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .height(65.dp)
+                .height(appBarContentHeight)
                 .padding(horizontal = 8.dp),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.TopCenter,
         ) {
             // Left Slot (Menu/Back)
             if (navigationIcon != null) {
@@ -75,7 +80,7 @@ fun ApodTopAppBar(
                     .fillMaxWidth(0.75f)
                     .fillMaxHeight()
                     .align(Alignment.Center),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
             ) {
                 titleContent()
             }

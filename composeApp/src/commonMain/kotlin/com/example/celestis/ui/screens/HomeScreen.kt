@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -67,6 +68,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -151,19 +153,12 @@ fun HomeScreenSuccess(
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
     
-    // Professional dual-layer transition system
-    var backgroundApod by remember { mutableStateOf(displayApod) }
-    var foregroundApod by remember { mutableStateOf(displayApod) }
-    var isTransitioning by remember { mutableStateOf(false) }
+    var currentApod by remember { mutableStateOf(displayApod) }
     
     // Smooth transition coordination
     LaunchedEffect(displayApod.date) {
-        if (foregroundApod.date != displayApod.date) {
-            isTransitioning = true
-            foregroundApod = displayApod
-            delay(450)
-            backgroundApod = displayApod
-            isTransitioning = false
+        if (currentApod.date != displayApod.date) {
+            currentApod = displayApod
         }
     }
 
@@ -208,26 +203,9 @@ fun HomeScreenSuccess(
         }
 
         Box(modifier = finalImageModifier) {
-            // Persistent background layer - prevents flash during transitions
-            if (!backgroundApod.isVideo()) {
+            if (isLandscape && !currentApod.isVideo() && !currentApod.url.isNullOrEmpty()) {
                 AsyncImage(
-                    model = backgroundApod.url,
-                    contentDescription = null,
-                    contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                CelestisVideoPlayer(
-                    videoUrl = backgroundApod.url ?: "",
-                    modifier = Modifier.fillMaxSize(),
-                    onError = { println("Video playback error in HomeScreen: $it") }
-                )
-            }
-            
-            // Landscape blur overlay layer
-            if (isLandscape && !backgroundApod.isVideo()) {
-                AsyncImage(
-                    model = backgroundApod.url,
+                    model = currentApod.url,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -235,7 +213,6 @@ fun HomeScreenSuccess(
                         .graphicsLayer {
                             scaleX = 1.1f
                             scaleY = 1.1f
-                            alpha = 0.3f
                         }
                         .drawWithContent {
                             drawContent()
@@ -245,27 +222,41 @@ fun HomeScreenSuccess(
             }
             
             // Foreground layer with professional crossfade - only visible during transitions
-            if (isTransitioning) {
-                Crossfade(
-                    targetState = foregroundApod.date,
-                    animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
-                    label = "main_image_transition"
-                ) { _ ->
-                    if (foregroundApod.isVideo()) {
+            Crossfade(
+                targetState = currentApod.date,
+                animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+                label = "main_content_transition"
+            ) { _ ->
+                val hasImage = !currentApod.isVideo() && !currentApod.url.isNullOrEmpty()
+                val hasVideo = currentApod.isVideo() && !currentApod.url.isNullOrEmpty()
+
+                when {
+                    hasVideo -> {
                         CelestisVideoPlayer(
-                            videoUrl = foregroundApod.url ?: "",
+                            videoUrl = currentApod.url ?: "",
                             modifier = Modifier.fillMaxSize(),
-                            onError = { println("Video playback error in HomeScreen: $it") }
+                            onError = { println("Video playback error: $it") }
                         )
-                    } else {
+                    }
+                    hasImage -> {
                         AsyncImage(
-                            model = foregroundApod.url,
-                            contentDescription = foregroundApod.title,
+                            model = currentApod.url,
+                            contentDescription = currentApod.title,
                             contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                    else -> {
+                        MediaUnavailablePlaceholder(title = currentApod.title)
+                    }
                 }
+            }
+            AnimatedVisibility(
+                visible = isImageLoading,
+                enter = fadeIn(animationSpec = tween(150)),
+                exit = fadeOut(animationSpec = tween(400))
+            ) {
+                ImageLoadingShimmer()
             }
         }
 
@@ -431,13 +422,14 @@ fun HomeScreenSuccess(
                 actions = {
                     // Share button moved to sheet header
                 },
+                windowSizeClass = windowSizeClass
             )
         }
         
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 131.dp)
+                .padding(top = if (isLandscape) 86.dp else 131.dp)
                 .padding(horizontal = 16.dp)
                 .graphicsLayer { alpha = topBarAlpha }
         ) {
@@ -684,3 +676,72 @@ fun HomeScreenLoading() {
         CircularProgressIndicator()
     }
 }
+
+@Composable
+fun ImageLoadingShimmer(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerX by infiniteTransition.animateFloat(
+        initialValue = -1200f,
+        targetValue = 1200f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_x"
+    )
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = 0.12f),
+                        Color.Transparent
+                    ),
+                    start = Offset(shimmerX, 0f),
+                    end = Offset(shimmerX + 600f, 1400f)
+                )
+            )
+    )
+}
+
+@Composable
+fun MediaUnavailablePlaceholder(title: String?, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF0D0D1A)),  // deep space dark
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.AutoAwesome,  // reuse existing import
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.25f),
+                modifier = Modifier.size(48.dp)
+            )
+            Text(
+                text = "Media unavailable",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center
+            )
+            title?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.3f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
