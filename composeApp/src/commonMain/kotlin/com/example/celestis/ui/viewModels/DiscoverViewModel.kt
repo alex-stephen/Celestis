@@ -112,7 +112,10 @@ class DiscoverViewModel(
         
         when {
             error != null -> DiscoverUiState.Error(error)
-            refreshing && range.isEmpty() -> DiscoverUiState.Loading
+            refreshing &&
+            range.isEmpty() &&
+            query.isEmpty() &&
+            !search.isLoading -> DiscoverUiState.Loading
             else -> DiscoverUiState.Success(
                 rangeApod = range,
                 searchQuery = query,
@@ -251,8 +254,6 @@ class DiscoverViewModel(
     private fun performSearch(query: String, reset: Boolean) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            _isRefreshing.value = true
-            _rangeApod.value = emptyList()
             val currentState = _searchState.value
             
             if (reset) {
@@ -295,8 +296,6 @@ class DiscoverViewModel(
                     isLoadingMore = false,
                     error = e.message ?: "Unable to search. Please try again."
                 )
-            } finally {
-                _isRefreshing.value = false
             }
         }
     }

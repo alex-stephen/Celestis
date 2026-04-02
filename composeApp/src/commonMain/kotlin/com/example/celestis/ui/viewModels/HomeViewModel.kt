@@ -143,7 +143,13 @@ class HomeViewModel(
             val request = ImageRequest.Builder(context)
                 .data(next.url)
                 .build()
-            imageLoader.execute(request)
+            val cached = imageLoader.memoryCache?.get(
+                coil3.memory.MemoryCache.Key(next.url ?: "")
+            )
+            if (cached == null) {
+                // Not in memory yet — let the shimmer show while we wait
+                imageLoader.execute(request)
+            }
             
 
             _randomApod.value = next

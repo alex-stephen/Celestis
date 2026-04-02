@@ -239,84 +239,73 @@ fun SharedTransitionScope.DiscoverScreenGrid(
         } else {
             // MODE B: Search Results with Pagination
             val searchState = state.searchResults
-            
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(gridCols),
-                contentPadding = contentPadding,
-                modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
-            ) {
-                // Show initial loading
-                if (searchState.isLoading && searchState.items.isEmpty()) {
-                    item(span = { GridItemSpan(gridCols) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
-                
-                // Show search results
-                itemsIndexed(
-                    items = searchState.items,
-                    key = { _, apod -> apod.date }
-                ) { index, apod ->
-                    ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
-                    
-                    // Trigger load more when near end
-                    val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
-                        derivedStateOf {
-                            index >= searchState.items.size - 15 &&
-                            searchState.hasMore && 
-                            !searchState.isLoadingMore
-                        }
-                    }
-                    
-                    if (shouldLoadMore) {
-                        LaunchedEffect(Unit) {
-                            onLoadMoreSearchResults()
-                        }
-                    }
-                }
+            if (searchState.isLoading && searchState.items.isEmpty()) {
+                ShimmerApodGrid(columns = gridCols, itemCount = 30)
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridCols),
+                    contentPadding = contentPadding,
+                    modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                ) {
+                    // Show search results
+                    itemsIndexed(
+                        items = searchState.items,
+                        key = { _, apod -> apod.date }
+                    ) { index, apod ->
+                        ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
 
-                // Show loading more indicator at bottom
-                if (searchState.isLoadingMore) {
-                    item(span = { GridItemSpan(gridCols) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                        // Trigger load more when near end
+                        val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
+                            derivedStateOf {
+                                index >= searchState.items.size - 15 &&
+                                        searchState.hasMore &&
+                                        !searchState.isLoadingMore
+                            }
+                        }
+
+                        if (shouldLoadMore) {
+                            LaunchedEffect(Unit) {
+                                onLoadMoreSearchResults()
+                            }
                         }
                     }
-                }
-                
-                // Show error if present
-                if (searchState.error != null) {
-                    item(span = { GridItemSpan(gridCols) }) {
-                        Text(
-                            text = "Error: ${searchState.error}",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp)
-                        )
+
+                    // Show loading more indicator at bottom
+                    if (searchState.isLoadingMore) {
+                        item(span = { GridItemSpan(gridCols) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
+                        }
                     }
-                }
-                
-                // Show "no results" message
-                if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
-                    item(span = { GridItemSpan(gridCols) }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No results found for \"${state.searchQuery}\"")
+
+                    // Show error if present
+                    if (searchState.error != null) {
+                        item(span = { GridItemSpan(gridCols) }) {
+                            Text(
+                                text = "Error: ${searchState.error}",
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    }
+
+                    // Show "no results" message
+                    if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
+                        item(span = { GridItemSpan(gridCols) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No results found for \"${state.searchQuery}\"")
+                            }
                         }
                     }
                 }
@@ -434,7 +423,7 @@ fun SharedTransitionScope.ApodCard(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Unable to load",
+                                    text = if (apod.url == null || apod.urlHD == null) "Media Not Available" else "Unable to load",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                 )
