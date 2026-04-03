@@ -5,20 +5,22 @@ package com.example.celestis.widget
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.scale
+import androidx.core.net.toUri
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.background
 import androidx.glance.currentState
@@ -36,6 +38,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.example.celestis.MainActivity
+import com.example.celestis.ui.utils.LinkGenerator
 import java.io.File
 
 /**
@@ -80,13 +83,22 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
     val bitmap = loadBitmapFromFile(context, state.imagePath)
     
-    val componentName = ComponentName(context, MainActivity::class.java)
+    // Create deep link action
+    val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
+    val clickAction = actionStartActivity(
+        Intent(Intent.ACTION_VIEW, deepLinkUrl.toUri()).apply {
+            component = ComponentName(context, MainActivity::class.java)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+    )
     
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
-            .clickable(onClick = actionStartActivity(componentName))
+            .clickable(onClick = clickAction)
     ) {
         if (bitmap != null) {
             // Load image from local file storage
@@ -127,13 +139,22 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
     val bitmap = loadBitmapFromFile(context, state.imagePath)
     
-    val componentName = ComponentName(context, MainActivity::class.java)
+    // Create deep link action
+    val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
+    val clickAction = actionStartActivity(
+        Intent(Intent.ACTION_VIEW, deepLinkUrl.toUri()).apply {
+            component = ComponentName(context, MainActivity::class.java)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+    )
     
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
-            .clickable(onClick = actionStartActivity(componentName))
+            .clickable(onClick = clickAction)
     ) {
         if (bitmap != null) {
             // Background image
@@ -191,15 +212,14 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
  */
 @Composable
 private fun LoadingLayout() {
-    val context = LocalContext.current
-    val componentName = ComponentName(context, MainActivity::class.java)
+    val clickAction = actionStartActivity<MainActivity>()
     
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .background(Color(0xFF1A1A2E))
-            .clickable(onClick = actionStartActivity(componentName)),
+            .clickable(onClick = clickAction),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -232,15 +252,14 @@ private fun LoadingLayout() {
  */
 @Composable
 private fun NoDataLayout() {
-    val context = LocalContext.current
-    val componentName = ComponentName(context, MainActivity::class.java)
+    val clickAction = actionStartActivity<MainActivity>()
     
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .background(Color(0xFF1A1A2E))
-            .clickable(onClick = actionStartActivity(componentName)),
+            .clickable(onClick = clickAction),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -281,15 +300,14 @@ private fun NoDataLayout() {
  */
 @Composable
 private fun ErrorLayout(message: String) {
-    val context = LocalContext.current
-    val componentName = ComponentName(context, MainActivity::class.java)
+    val clickAction = actionStartActivity<MainActivity>()
     
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
             .background(Color(0xFF2E1A1A))
-            .clickable(onClick = actionStartActivity(componentName)),
+            .clickable(onClick = clickAction),
         contentAlignment = Alignment.Center
     ) {
         Column(
