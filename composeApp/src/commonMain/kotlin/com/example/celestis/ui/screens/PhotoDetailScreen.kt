@@ -115,7 +115,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
 
                 is PhotoDetailUiState.Success -> {
                     val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
-                    val shouldHideTopBar = isLandscape && state.selectedHdUrl != null
+                    val shouldHideTopBar = state.selectedHdUrl != null
                     
                     Box(
                         modifier = Modifier
@@ -175,7 +175,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
                                         )
                                     }
                                 },
-                                hazeState = hazeState
+                                hazeState = hazeState,
+                                windowSizeClass = windowSizeClass
                             )
                         }
                     }
@@ -212,7 +213,7 @@ fun SharedTransitionScope.PhotoDetailContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     topBarState: TopBarState
 ) {
-    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
 
     val apod = state.apod
     val scrollState = rememberScrollState()
@@ -259,7 +260,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                 .verticalScroll(scrollState)
         ) {
                 // Add top padding for the AppBar ContentPadding
-                Spacer(modifier = Modifier.height(if (isLandscape) 92.dp else 114.dp,))
+                Spacer(modifier = Modifier.height(if (isLandscape) 69.dp else 114.dp,))
                 
                 // Check if media is video
                 if (apod.isVideo()) {
