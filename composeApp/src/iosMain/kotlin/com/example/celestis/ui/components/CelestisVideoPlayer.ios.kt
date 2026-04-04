@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
@@ -13,6 +14,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.pause
+import platform.AVFoundation.play
 import platform.AVKit.AVPlayerViewController
 import platform.Foundation.NSURL
 
@@ -30,7 +32,10 @@ import platform.Foundation.NSURL
 actual fun CelestisVideoPlayer(
     videoUrl: String,
     modifier: Modifier,
-    onError: (String) -> Unit
+    onError: (String) -> Unit,
+    isPlaying: Boolean,
+    isLandscape: Boolean,
+    onPlayingChange: (Boolean) -> Unit,
 ) {
     val player = remember {
         val url = NSURL.URLWithString(videoUrl)
@@ -41,6 +46,10 @@ actual fun CelestisVideoPlayer(
             onError("Invalid video URL")
             null
         }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) player?.play() else player?.pause()
     }
     
     DisposableEffect(Unit) {

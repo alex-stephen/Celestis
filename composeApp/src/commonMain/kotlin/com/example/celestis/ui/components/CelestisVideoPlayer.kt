@@ -16,5 +16,8 @@ import androidx.compose.ui.Modifier
 expect fun CelestisVideoPlayer(
     videoUrl: String,
     modifier: Modifier = Modifier,
-    onError: (String) -> Unit = {}
+    onError: (String) -> Unit = {},
+    isPlaying: Boolean = false,
+    isLandscape: Boolean = false,
+    onPlayingChange: (Boolean) -> Unit = {},
 )

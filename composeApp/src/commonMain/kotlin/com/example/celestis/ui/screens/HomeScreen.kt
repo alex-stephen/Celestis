@@ -154,7 +154,7 @@ fun HomeScreenSuccess(
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
     
     var currentApod by remember { mutableStateOf(displayApod) }
-    
+    var isVideoPlaying by remember(currentApod.date) { mutableStateOf(false) }
     // Smooth transition coordination
     LaunchedEffect(displayApod.date) {
         if (currentApod.date != displayApod.date) {
@@ -168,7 +168,7 @@ fun HomeScreenSuccess(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val peekHeight = if (isLandscape) 110.dp else 194.dp
+        val peekHeight = if (isLandscape) 50.dp else 194.dp
 
         val density = LocalDensity.current
         val screenHeightPx = with(density) { screenHeight.toPx() }
@@ -235,7 +235,10 @@ fun HomeScreenSuccess(
                         CelestisVideoPlayer(
                             videoUrl = currentApod.url ?: "",
                             modifier = Modifier.fillMaxSize(),
-                            onError = { println("Video playback error: $it") }
+                            onError = { println("Video playback error: $it") },
+                            isPlaying = isVideoPlaying,
+                            isLandscape = isLandscape,
+                            onPlayingChange = { isVideoPlaying = it }
                         )
                     }
                     hasImage -> {
@@ -264,16 +267,9 @@ fun HomeScreenSuccess(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .then(
-                    // Only make scrollable if not a video, or start scroll below video area
-                    if (!displayApod.isVideo()) {
-                        Modifier.verticalScroll(scrollState)
-                    } else {
-                        Modifier
-                    }
-                )
+                .verticalScroll(scrollState)
         ) {
-            // For videos, use a Box instead of Spacer to avoid blocking touch events
+            // Spacer for both images and videos - images are clickable, videos are not
             if (!displayApod.isVideo()) {
                 Spacer(
                     modifier = Modifier
@@ -282,25 +278,17 @@ fun HomeScreenSuccess(
                         .clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
                 )
             } else {
-                // For videos, create the space without any interactivity
+                // For videos, use pointerInput to allow touches to pass through to video below
                 Spacer(
                     modifier = Modifier
                         .height(screenHeight - peekHeight)
                         .fillMaxWidth()
+                        .clickable { isVideoPlaying = !isVideoPlaying }// Empty pointerInput allows touches to pass through
                 )
             }
 
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        // Add scroll only to the glass sheet section when displaying videos
-                        if (displayApod.isVideo()) {
-                            Modifier.verticalScroll(scrollState)
-                        } else {
-                            Modifier
-                        }
-                    )
+                modifier = Modifier.fillMaxWidth()
             ) {
 
                 // GLASS SHEET CONTENT

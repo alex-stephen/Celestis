@@ -237,110 +237,112 @@ fun SharedTransitionScope.PhotoDetailContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .drawBehind {
-                drawRect(color = Color.Black)
-
-                // The "Eased" Gradient - avoid the "Blob" by adding mid-points
-                val easedGradient = Brush.verticalGradient(
-                    0.0f to animatedDominantColor.copy(alpha = 0.5f), // Start at bottom of image
-                    0.3f to animatedDominantColor.copy(alpha = 0.2f),
-                    0.6f to animatedDominantColor.copy(alpha = 0.05f),
-                    1.0f to Color.Transparent,
-                    startY = imageBottomPx,
-                    endY = imageBottomPx + glowDepthPx
-                )
-
-                drawRect(brush = easedGradient)
-            }
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(topBarState.nestedScrollConnection)
+                .nestedScroll(topBarState.nestedScrollConnection) // Top bar visibility logic
                 .verticalScroll(scrollState)
         ) {
-                // Add top padding for the AppBar ContentPadding
-                Spacer(modifier = Modifier.height(if (isLandscape) 69.dp else 114.dp,))
-                
-                // Check if media is video
-                if (apod.isVideo()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(400.dp)
-                    ) {
-                        CelestisVideoPlayer(
-                            videoUrl = apod.url ?: "",
-                            modifier = Modifier.fillMaxSize(),
-                            onError = { error ->
-                                // Handle video error - could show error state in UI
-                                println("Video playback error: $error")
-                            }
-                        )
-                    }
-                } else {
-                    // Header Image - 50% of viewport height, clickable for HD
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(400.dp) // Approximately 50% of typical viewport
-                            .clickable(onClick = onImageClick)
-                    ) {
-                        SubcomposeAsyncImage(
-                            model = apod.url,
-                            contentDescription = apod.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .sharedElement(
-                                    rememberSharedContentState(key = "image-${apod.date}"),
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                ),
-                            loading = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(40.dp),
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Text(
-                                            text = "Loading image...",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            },
-                            onSuccess = { successState ->
-                                // Extract dominant color when image loads successfully
-                                coroutineScope.launch {
-                                    try {
-                                        val image = successState.result.image
-                                        val extractedColor = extractDominantColor(image)
-                                        extractedColor?.let { color ->
-                                            dominantColor = color
-                                        }
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                            }
-                        )
-                    }
+            // Add top padding for the AppBar ContentPadding
+            Spacer(modifier = Modifier.height(if (isLandscape) 69.dp else 114.dp,))
+
+            // Check if media is video
+            if (apod.isVideo()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                ) {
+                    CelestisVideoPlayer(
+                        videoUrl = apod.url ?: "",
+                        modifier = Modifier.fillMaxSize(),
+                        onError = { error ->
+                            // Handle video error - could show error state in UI
+                            println("Video playback error: $error")
+                        }
+                    )
                 }
+            } else {
+                // Header Image - 50% of viewport height, clickable for HD
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp) // Approximately 50% of typical viewport
+                        .clickable(onClick = onImageClick)
+                ) {
+                    SubcomposeAsyncImage(
+                        model = apod.url,
+                        contentDescription = apod.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .sharedElement(
+                                rememberSharedContentState(key = "image-${apod.date}"),
+                                animatedVisibilityScope = animatedVisibilityScope
+                            ),
+                        loading = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(40.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Loading image...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        },
+                        onSuccess = { successState ->
+                            // Extract dominant color when image loads successfully
+                            coroutineScope.launch {
+                                try {
+                                    val image = successState.result.image
+                                    val extractedColor = extractDominantColor(image)
+                                    extractedColor?.let { color ->
+                                        dominantColor = color
+                                    }
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
+                            }
+                        }
+                    )
+                }
+            }
 
                 // Metadata Section
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .fillMaxSize()
+                        .drawBehind {
+                            drawRect(color = Color.Black)
+
+                            // The "Eased" Gradient - avoid the "Blob" by adding mid-points
+                            val easedGradient = Brush.verticalGradient(
+                                0.0f to animatedDominantColor.copy(alpha = 0.5f), // Start at bottom of image
+                                0.3f to animatedDominantColor.copy(alpha = 0.2f),
+                                0.6f to animatedDominantColor.copy(alpha = 0.05f),
+                                1.0f to Color.Transparent,
+                                startY = imageBottomPx,
+                                endY = imageBottomPx + glowDepthPx
+                            )
+
+                            drawRect(brush = easedGradient)
+                        }
                         .padding(16.dp)
                 ) {
                     Row(
@@ -411,6 +413,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                     Spacer(modifier = Modifier.height(80.dp))
                 }
             }
+        }
 
         // HD Image Popup
         if (state.selectedHdUrl != null) {
@@ -419,5 +422,4 @@ fun SharedTransitionScope.PhotoDetailContent(
                 onDismiss = onHideHdImage
             )
         }
-    }
 }
