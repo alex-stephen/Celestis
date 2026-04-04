@@ -5,12 +5,18 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -40,7 +46,10 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTube
 actual fun CelestisVideoPlayer(
     videoUrl: String,
     modifier: Modifier,
-    onError: (String) -> Unit
+    onError: (String) -> Unit,
+    isPlaying: Boolean,
+    isLandscape: Boolean,
+    onPlayingChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -54,16 +63,24 @@ actual fun CelestisVideoPlayer(
         if (isYouTube) {
             val youtubeVideoId = remember(videoUrl) { VideoUrlUtils.extractYouTubeId(videoUrl) }
 
+            // store a reference so we can call play/pause on it
+            var youTubePlayerRef by remember { mutableStateOf<YouTubePlayer?>(null) }
+
+            // wire isPlaying to the stored reference
+            LaunchedEffect(isPlaying, youTubePlayerRef) {
+                val player = youTubePlayerRef ?: return@LaunchedEffect
+                if (isPlaying) player.play() else player.pause()
+            }
+
             if (youtubeVideoId != null) {
                 AndroidView(
                     factory = { ctx ->
                         YouTubePlayerView(ctx).apply {
-                            // Automatically manages the player's lifecycle (pause/resume/release)
                             lifecycleOwner.lifecycle.addObserver(this)
 
                             addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
                                 override fun onReady(youTubePlayer: YouTubePlayer) {
-                                    // cueVideo prevents auto-play to save user bandwidth in the grid/feed
+                                    youTubePlayerRef = youTubePlayer  // ← store ref
                                     youTubePlayer.cueVideo(youtubeVideoId, 0f)
                                 }
 
@@ -76,9 +93,9 @@ actual fun CelestisVideoPlayer(
                             })
                         }
                     },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(top = if (isLandscape) 175.dp else 0.dp),
                     onRelease = { view ->
-                        // Failsafe cleanup when the view is removed from the composition
+                        youTubePlayerRef = null  // ← clear ref on release
                         lifecycleOwner.lifecycle.removeObserver(view)
                         view.release()
                     }
@@ -87,7 +104,6 @@ actual fun CelestisVideoPlayer(
                 onError("Could not extract YouTube video ID from URL")
             }
         } else {
-            // Media3 ExoPlayer Implementation
             val exoPlayer = remember(videoUrl) {
                 ExoPlayer.Builder(context).build().apply {
                     setMediaItem(MediaItem.fromUri(videoUrl))
@@ -102,7 +118,10 @@ actual fun CelestisVideoPlayer(
                 }
             }
 
-            // Bind ExoPlayer to Compose Lifecycle to handle backgrounding properly
+            LaunchedEffect(isPlaying) {
+                if (isPlaying) exoPlayer.play() else exoPlayer.pause()
+            }
+
             DisposableEffect(exoPlayer, lifecycleOwner) {
                 val observer = LifecycleEventObserver { _, event ->
                     when (event) {
@@ -127,7 +146,7 @@ actual fun CelestisVideoPlayer(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        useController = true
+                        useController = false  // ← FIXED: Spacer owns all taps now
                         setShowNextButton(false)
                         setShowPreviousButton(false)
                     }
