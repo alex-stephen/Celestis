@@ -10,13 +10,13 @@ import platform.Network.nw_path_status_satisfied
 import platform.Network.nw_path_uses_interface_type
 import platform.Network.nw_interface_type_wifi
 import platform.darwin.dispatch_get_main_queue
-import kotlinx.cinterop.CPointer
-import platform.Network.nw_path_t
 import platform.Network.nw_path_is_constrained
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlin.concurrent.Volatile
+import platform.darwin.NSObject
 
 /**
  * iOS implementation of NetworkMonitor using NWPathMonitor.
@@ -31,7 +31,7 @@ actual class NetworkMonitor {
     private val pathMonitor = nw_path_monitor_create()
     
     @Volatile
-    private var currentPath: CPointer<nw_path_t>? = null
+    private var currentPath: NSObject? = null
     
     init {
         // Set up the path monitor to track network changes
