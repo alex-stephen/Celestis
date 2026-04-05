@@ -9,9 +9,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlinx.cinterop.ExperimentalForeignApi
 import platform.BackgroundTasks.BGAppRefreshTaskRequest
 import platform.BackgroundTasks.BGTaskScheduler
 import platform.Foundation.NSLog
@@ -24,6 +25,7 @@ import platform.Foundation.dateByAddingTimeInterval
  * or SceneDelegate, as it requires registering before app finishes launching.
  * This class provides the Kotlin logic that Swift will invoke.
  */
+@OptIn(ExperimentalForeignApi::class)
 class IosSyncManager(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
@@ -60,7 +62,8 @@ class IosSyncManager(
 
             // Validate that we got today's APOD
             val latestApod = repository.observeLatestApod().firstOrNull()
-            val today = Clock.System.now()
+            val now = Clock.System.now()
+            val today = kotlinx.datetime.Instant.fromEpochMilliseconds(now.toEpochMilliseconds())
                 .toLocalDateTime(TimeZone.currentSystemDefault())
                 .date
                 .toString()
