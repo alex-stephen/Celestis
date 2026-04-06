@@ -154,7 +154,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
                                     Text(
                                         text = "PHOTO DETAIL",
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = Color.White
+                                        color = Color.White,
+                                        letterSpacing = 2.sp
                                     )
                                 },
                                 navigationIcon = {

@@ -65,15 +65,28 @@ private class ApodWidgetStateDataStore(
             // Collect the latest APOD from the database
             repository.observeLatestApodForWidget().collect { apodEntity ->
                 val state = if (apodEntity != null) {
-                    // Construct the local image path
+                    val mediaType = apodEntity.mediaType ?: "image"
+                    val isVideo = mediaType.equals("video", ignoreCase = true)
+                    
+                    // Construct the local image/thumbnail path
                     val imagePath = ApodSyncWorker.getLocalImagePath(context, apodEntity.date)
                     
-                    // Check if the image file exists
-                    if (imagePath.exists()) {
+                    // For videos, we can show the widget even without a thumbnail
+                    // For images, we need the image file to exist
+                    val canShowWidget = if (isVideo) {
+                        // Video: can show even without thumbnail (will show "Tap to view Video")
+                        true
+                    } else {
+                        // Image: must have the image file
+                        imagePath.exists()
+                    }
+                    
+                    if (canShowWidget) {
                         ApodWidgetState.Success(
                             title = apodEntity.title ?: "Astronomy Picture of the Day",
                             date = formatDate(apodEntity.date),
-                            imagePath = imagePath.absolutePath
+                            imagePath = if (imagePath.exists()) imagePath.absolutePath else null,
+                            mediaType = mediaType
                         )
                     } else {
                         // Image not downloaded yet, show loading
