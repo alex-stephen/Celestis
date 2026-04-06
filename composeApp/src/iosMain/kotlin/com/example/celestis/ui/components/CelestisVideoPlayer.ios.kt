@@ -3,29 +3,41 @@ package com.example.celestis.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.unit.dp
+import com.example.celestis.ui.utils.VideoUrlUtils
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.readValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
 import platform.AVKit.AVPlayerViewController
+import platform.CoreGraphics.CGRectZero
 import platform.Foundation.NSURL
+import platform.WebKit.WKWebView
+import platform.WebKit.WKWebViewConfiguration
 
 /**
- * iOS implementation of CelestisVideoPlayer using AVPlayerViewController.
- * 
- * Features:
- * - Native iOS video playback
- * - Full-screen support (portrait & landscape)
- * - Proper lifecycle management
- * - YouTube URL support (may need web view for some cases)
+ * iOS implementation of CelestisVideoPlayer.
+ *
+ * - YouTube videos: Embedded via WKWebView iframe player
+ * - Direct media (MP4/HLS): AVPlayer created off the main thread to prevent blocking
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -37,45 +49,122 @@ actual fun CelestisVideoPlayer(
     isLandscape: Boolean,
     onPlayingChange: (Boolean) -> Unit,
 ) {
-    val player = remember {
-        val url = NSURL.URLWithString(videoUrl)
-        if (url != null) {
-            val playerItem = AVPlayerItem.playerItemWithURL(url)
-            AVPlayer.playerWithPlayerItem(playerItem)
-        } else {
-            onError("Invalid video URL")
-            null
-        }
+    val isYouTube = remember(videoUrl) { VideoUrlUtils.isYouTubeUrl(videoUrl) }
+    val youtubeVideoId = remember(videoUrl) {
+        if (isYouTube) VideoUrlUtils.extractYouTubeId(videoUrl) else null
     }
 
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) player?.play() else player?.pause()
-    }
-    
-    DisposableEffect(Unit) {
-        onDispose {
-            player?.pause()
-        }
-    }
-    
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        if (player != null) {
-            UIKitView(
-                factory = {
-                    val playerViewController = AVPlayerViewController()
-                    playerViewController.player = player
-                    playerViewController.showsPlaybackControls = true
-                    playerViewController.view
-                },
-                modifier = Modifier.fillMaxSize(),
-                update = { view ->
-                    // Update logic if needed
+        if (isYouTube) {
+            if (youtubeVideoId != null) {
+                val embedHtml = remember(youtubeVideoId) {
+                    """
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                    <style>
+                        * { margin: 0; padding: 0; }
+                        html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+                        iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+                    </style>
+                    </head>
+                    <body>
+                    <iframe
+                        src="https://www.youtube.com/embed/$youtubeVideoId?playsinline=1&rel=0&modestbranding=1"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                    </iframe>
+                    </body>
+                    </html>
+                    """.trimIndent()
                 }
-            )
+
+                UIKitView(
+                    factory = {
+                        val config = WKWebViewConfiguration().apply {
+                            allowsInlineMediaPlayback = true
+                            mediaTypesRequiringUserActionForPlayback = 0u
+                        }
+                        WKWebView(frame = CGRectZero.readValue(), configuration = config).apply {
+                            scrollView.scrollEnabled = false
+                            scrollView.bounces = false
+                            loadHTMLString(embedHtml, baseURL = null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { _ -> }
+                )
+            } else {
+                LaunchedEffect(Unit) { onError("Could not extract YouTube video ID from URL") }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Video unavailable", color = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+        } else {
+            // Direct media: create AVPlayer off main thread, then attach to UI
+            var player by remember(videoUrl) { mutableStateOf<AVPlayer?>(null) }
+            var loadError by remember(videoUrl) { mutableStateOf<String?>(null) }
+
+            // Create player item on background thread to avoid blocking main thread
+            LaunchedEffect(videoUrl) {
+                try {
+                    val url = NSURL.URLWithString(videoUrl)
+                    if (url == null) {
+                        loadError = "Invalid video URL"
+                        return@LaunchedEffect
+                    }
+                    // Build the AVPlayerItem on a background dispatcher so the
+                    // synchronous network probe doesn't block the UI.
+                    val item = withContext(Dispatchers.Default) {
+                        AVPlayerItem(uRL = url)
+                    }
+                    // AVPlayer must be created on the main thread
+                    player = AVPlayer(playerItem = item)
+                } catch (e: Exception) {
+                    loadError = e.message ?: "Failed to load video"
+                }
+            }
+
+            val currentPlayer = player
+
+            if (loadError != null) {
+                LaunchedEffect(loadError) { onError(loadError!!) }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Unable to load video", color = MaterialTheme.colorScheme.onBackground)
+                }
+            } else if (currentPlayer != null) {
+                LaunchedEffect(isPlaying) {
+                    if (isPlaying) currentPlayer.play() else currentPlayer.pause()
+                }
+
+                DisposableEffect(currentPlayer) {
+                    onDispose { currentPlayer.pause() }
+                }
+
+                UIKitView(
+                    factory = {
+                        val controller = AVPlayerViewController()
+                        controller.player = currentPlayer
+                        controller.showsPlaybackControls = true
+                        controller.view
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    update = { _ -> }
+                )
+            } else {
+                // Loading state
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

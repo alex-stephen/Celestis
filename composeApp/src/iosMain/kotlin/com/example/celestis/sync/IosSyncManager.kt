@@ -98,21 +98,18 @@ class IosSyncManager(
         }
     }
 
+    /**
+     * Non-suspend entry point for Swift background task handler.
+     * Launches a coroutine internally and calls onComplete when done.
+     */
+    fun startBackgroundSync(onComplete: (Boolean) -> Unit) {
+        CoroutineScope(Dispatchers.Default).launch {
+            val success = performSync()
+            onComplete(success)
+        }
+    }
+
     companion object {
         const val TASK_IDENTIFIER = "com.example.celestis.refresh"
-        
-        /**
-         * Helper function to be called from Swift background task handler.
-         * This bridges the Swift async world to Kotlin coroutines.
-         */
-        fun handleBackgroundTask(
-            syncManager: IosSyncManager,
-            onComplete: (Boolean) -> Unit
-        ) {
-            CoroutineScope(Dispatchers.Default).launch {
-                val success = syncManager.performSync()
-                onComplete(success)
-            }
-        }
     }
 }
