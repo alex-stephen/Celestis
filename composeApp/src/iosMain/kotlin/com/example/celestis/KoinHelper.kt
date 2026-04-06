@@ -39,3 +39,4 @@ fun getBackgroundSyncManager(): BackgroundSyncManager? {
         null
     }
 }
+
