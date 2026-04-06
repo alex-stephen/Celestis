@@ -10,12 +10,14 @@ sealed class ApodWidgetState {
      * 
      * @param title The APOD title
      * @param date The APOD date (YYYY-MM-DD format)
-     * @param imagePath Absolute file path to the locally cached image
+     * @param imagePath Absolute file path to the locally cached image/thumbnail (nullable for videos without thumbnails)
+     * @param mediaType The media type ("image" or "video")
      */
     data class Success(
         val title: String,
         val date: String,
-        val imagePath: String
+        val imagePath: String?,
+        val mediaType: String
     ) : ApodWidgetState()
     
     /**

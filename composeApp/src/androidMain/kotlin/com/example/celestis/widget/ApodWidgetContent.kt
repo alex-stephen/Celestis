@@ -75,13 +75,14 @@ fun ApodWidgetContent() {
 }
 
 /**
- * Small widget layout - Shows only the APOD image.
+ * Small widget layout - Shows only the APOD image or video indicator.
  * Optimized for minimal screen space (e.g., 2x2 grid).
  */
 @Composable
 private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
-    val bitmap = loadBitmapFromFile(context, state.imagePath)
+    val isVideo = state.mediaType.equals("video", ignoreCase = true)
+    val bitmap = state.imagePath?.let { loadBitmapFromFile(context, it) }
     
     // Create deep link action
     val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
@@ -101,15 +102,32 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
             .clickable(onClick = clickAction)
     ) {
         if (bitmap != null) {
-            // Load image from local file storage
+            // Load image/thumbnail from local file storage
             Image(
                 provider = ImageProvider(bitmap),
-                contentDescription = "APOD: ${state.title}",
+                contentDescription = if (isVideo) "Video: ${state.title}" else "APOD: ${state.title}",
                 contentScale = ContentScale.Crop,
                 modifier = GlanceModifier.fillMaxSize()
             )
+            
+            // Show play icon overlay for videos with thumbnails
+            if (isVideo) {
+                Box(
+                    modifier = GlanceModifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "▶",
+                        style = TextStyle(
+                            fontSize = 32.sp,
+                            color = ColorProvider(Color.White),
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
         } else {
-            // Fallback if image can't be loaded
+            // Fallback: Show message for videos without thumbnails or missing images
             Box(
                 modifier = GlanceModifier
                     .fillMaxSize()
@@ -117,9 +135,9 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "APOD",
+                    text = if (isVideo) "📹" else "APOD",
                     style = TextStyle(
-                        fontSize = 18.sp,
+                        fontSize = 32.sp,
                         color = ColorProvider(Color.White),
                         fontWeight = FontWeight.Bold
                     )
@@ -137,7 +155,8 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
 @Composable
 private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
-    val bitmap = loadBitmapFromFile(context, state.imagePath)
+    val isVideo = state.mediaType.equals("video", ignoreCase = true)
+    val bitmap = state.imagePath?.let { loadBitmapFromFile(context, it) }
     
     // Create deep link action
     val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
@@ -154,19 +173,20 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
+            .background(Color(0xFF1A1A2E))
             .clickable(onClick = clickAction)
     ) {
         if (bitmap != null) {
-            // Background image
+            // Background image/thumbnail
             Image(
                 provider = ImageProvider(bitmap),
-                contentDescription = "APOD: ${state.title}",
+                contentDescription = if (isVideo) "Video: ${state.title}" else "APOD: ${state.title}",
                 contentScale = ContentScale.Crop,
                 modifier = GlanceModifier.fillMaxSize()
             )
         }
         
-        // Title overlay at the bottom
+        // Content overlay at the bottom
         Column(
             modifier = GlanceModifier
                 .fillMaxSize(),
@@ -181,16 +201,40 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                // Title
-                Text(
-                    text = state.title,
-                    style = TextStyle(
-                        color = ColorProvider(Color.White),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    maxLines = 2
-                )
+                // Show appropriate message based on media type
+                if (isVideo && bitmap == null) {
+                    // Video without thumbnail - show clear call to action
+                    Text(
+                        text = "📹 Tap to view Video",
+                        style = TextStyle(
+                            color = ColorProvider(Color.White),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                } else if (isVideo) {
+                    // Video with thumbnail - show title and video indicator
+                    Text(
+                        text = "▶ ${state.title}",
+                        style = TextStyle(
+                            color = ColorProvider(Color.White),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 2
+                    )
+                } else {
+                    // Regular image - show title
+                    Text(
+                        text = state.title,
+                        style = TextStyle(
+                            color = ColorProvider(Color.White),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 2
+                    )
+                }
 
                 Spacer(modifier = GlanceModifier.height(4.dp))
 

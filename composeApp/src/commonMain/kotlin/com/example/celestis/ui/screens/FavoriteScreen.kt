@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.celestis.model.ApodResponse
 import com.example.celestis.ui.navigation.ApodTopAppBar
 import com.example.celestis.ui.navigation.TopBarState
@@ -89,6 +90,7 @@ fun SharedTransitionScope.FavoriteScreen(
                             text = "FAVOURITES",
                             style = MaterialTheme.typography.titleMedium,
                             color = Color.White,
+                            letterSpacing = 2.sp
                         )
                     }
                 },
