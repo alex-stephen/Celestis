@@ -17,14 +17,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.interop.UIKitViewController
 import androidx.compose.ui.unit.dp
 import com.example.celestis.ui.utils.VideoUrlUtils
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.readValue
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
+import platform.AVFoundation.AVURLAsset
 import platform.AVFoundation.pause
 import platform.AVFoundation.play
 import platform.AVKit.AVPlayerViewController
@@ -32,12 +35,15 @@ import platform.CoreGraphics.CGRectZero
 import platform.Foundation.NSURL
 import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
+import kotlin.coroutines.resume
 
 /**
  * iOS implementation of CelestisVideoPlayer.
  *
  * - YouTube videos: Embedded via WKWebView iframe player
- * - Direct media (MP4/HLS): AVPlayer created off the main thread to prevent blocking
+ * - Direct media (MP4/HLS): AVURLAsset with async metadata pre-loading, then
+ *   AVPlayerItem + AVPlayer on main thread, embedded via UIKitViewController.
+ *
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -106,24 +112,30 @@ actual fun CelestisVideoPlayer(
                 }
             }
         } else {
-            // Direct media: create AVPlayer off main thread, then attach to UI
+            // Direct media (MP4 / HLS)
             var player by remember(videoUrl) { mutableStateOf<AVPlayer?>(null) }
             var loadError by remember(videoUrl) { mutableStateOf<String?>(null) }
 
-            // Create player item on background thread to avoid blocking main thread
             LaunchedEffect(videoUrl) {
+                val nsUrl = NSURL.URLWithString(videoUrl)
+                if (nsUrl == null) {
+                    loadError = "Invalid video URL"
+                    return@LaunchedEffect
+                }
+
                 try {
-                    val url = NSURL.URLWithString(videoUrl)
-                    if (url == null) {
-                        loadError = "Invalid video URL"
-                        return@LaunchedEffect
+                    val asset = AVURLAsset.URLAssetWithURL(nsUrl, options = null)
+                    val keysToLoad = listOf("playable", "tracks", "duration", "preferredTransform")
+
+                    withContext(Dispatchers.Default) {
+                        suspendCancellableCoroutine<Unit> { cont ->
+                            asset.loadValuesAsynchronouslyForKeys(keysToLoad) {
+                                cont.resume(Unit)
+                            }
+                        }
                     }
-                    // Build the AVPlayerItem on a background dispatcher so the
-                    // synchronous network probe doesn't block the UI.
-                    val item = withContext(Dispatchers.Default) {
-                        AVPlayerItem(uRL = url)
-                    }
-                    // AVPlayer must be created on the main thread
+
+                    val item = AVPlayerItem(asset = asset)
                     player = AVPlayer(playerItem = item)
                 } catch (e: Exception) {
                     loadError = e.message ?: "Failed to load video"
@@ -146,18 +158,21 @@ actual fun CelestisVideoPlayer(
                     onDispose { currentPlayer.pause() }
                 }
 
-                UIKitView(
+                // UIKitViewController manages the full UIViewController lifecycle of
+                // AVPlayerViewController, preventing premature deallocation.
+                UIKitViewController(
                     factory = {
-                        val controller = AVPlayerViewController()
-                        controller.player = currentPlayer
-                        controller.showsPlaybackControls = true
-                        controller.view
+                        AVPlayerViewController().apply {
+                            this.player = currentPlayer
+                            showsPlaybackControls = true
+                        }
                     },
                     modifier = Modifier.fillMaxSize(),
-                    update = { _ -> }
+                    update = { controller ->
+                        controller.player = currentPlayer
+                    }
                 )
             } else {
-                // Loading state
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(48.dp),

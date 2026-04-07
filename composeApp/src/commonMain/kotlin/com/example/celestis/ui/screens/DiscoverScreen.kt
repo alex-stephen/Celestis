@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -66,6 +68,8 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -107,6 +111,12 @@ fun SharedTransitionScope.DiscoverScreen(
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val density = LocalDensity.current
+    var overlayHeightPx by remember { mutableStateOf(0) }
+    val overlayHeightDp = if (overlayHeightPx > 0) with(density) { overlayHeightPx.toDp() } else statusBarTop + appBarContentHeight
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -140,8 +150,8 @@ fun SharedTransitionScope.DiscoverScreen(
                             animatedVisibilityScope = animatedVisibilityScope,
                             topBarState = topBarState,
                             contentPadding = PaddingValues(
-                                top = if (state.isOfflineMode) 127.dp else if (isLandscape) 90.dp else 114.dp,
-                                bottom = 80.dp
+                                top = overlayHeightDp,
+                                bottom = 70.dp + navigationBarBottom + 10.dp
                             )
                         )
                     }
@@ -150,7 +160,9 @@ fun SharedTransitionScope.DiscoverScreen(
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { overlayHeightPx = it.height }
         ) {
             // Animated visibility for the search app bar
             AnimatedVisibility(
@@ -322,19 +334,37 @@ fun SharedTransitionScope.ApodCard(
     animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val isVideo = remember(apod.date) { apod.isVideo() }
-    val hasNoThumbnail = remember(apod.date, isVideo) { isVideo && apod.thumbnailUrl == null }
+    // Only show the placeholder when there is truly no thumbnail available:
+    // no thumbnailUrl from the API AND no YouTube ID we can derive a thumbnail from.
+    val hasNoThumbnail = remember(apod.date, isVideo, apod.thumbnailUrl, apod.url) {
+        isVideo && apod.thumbnailUrl == null &&
+            (apod.url == null || VideoUrlUtils.extractYouTubeId(apod.url) == null)
+    }
     
+    // Primary thumbnail URL: explicit thumbnailUrl > YouTube hqdefault > raw url
     val imageUrl = remember(apod.date, apod.url, apod.thumbnailUrl, isVideo) {
         if (isVideo) {
-            // Try to get YouTube thumbnail if it's a YouTube video
-            apod.url?.let { url ->
-                VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
-                    VideoUrlUtils.getYouTubeThumbnail(videoId)
+            apod.thumbnailUrl
+                ?: apod.url?.let { url ->
+                    VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                        VideoUrlUtils.getYouTubeThumbnail(videoId)
+                    }
                 }
-            } ?: apod.thumbnailUrl ?: apod.url
+                ?: apod.url
         } else {
             apod.url
         }
+    }
+
+    // Fallback thumbnail URL: mqdefault when hqdefault is unavailable
+    val fallbackImageUrl = remember(apod.date, apod.url, isVideo) {
+        if (isVideo && apod.thumbnailUrl == null) {
+            apod.url?.let { url ->
+                VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                    "https://img.youtube.com/vi/$videoId/mqdefault.jpg"
+                }
+            }
+        } else null
     }
     
     val scrimGradient = remember {
@@ -357,6 +387,22 @@ fun SharedTransitionScope.ApodCard(
                 .build()
         }
     }
+
+    // Fallback model used when primary imageModel fails (e.g. hqdefault 404 → mqdefault)
+    val fallbackImageModel = remember(fallbackImageUrl) {
+        fallbackImageUrl?.let { url ->
+            ImageRequest.Builder(context)
+                .data(url)
+                .size(400, 400)
+                .precision(Precision.INEXACT)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+        }
+    }
+
+    // Track whether we are currently showing the fallback model
+    var usingFallback by remember(apod.date) { mutableStateOf(false) }
     
     Card(
         onClick = { onPhotoDetailClick(apod) },
@@ -382,7 +428,7 @@ fun SharedTransitionScope.ApodCard(
                 )
             } else {
                 SubcomposeAsyncImage(
-                    model = imageModel,
+                    model = if (usingFallback) fallbackImageModel else imageModel,
                     contentDescription = apod.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -406,8 +452,22 @@ fun SharedTransitionScope.ApodCard(
                         }
                     },
                     error = {
-                        // Fallback to VideoPlaceholder if image fails to load for videos
-                        if (isVideo) {
+                        if (isVideo && !usingFallback && fallbackImageModel != null) {
+                            // Primary YouTube thumbnail failed — retry with mqdefault
+                            LaunchedEffect(apod.date) { usingFallback = true }
+                            // Show spinner while switching
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                )
+                            }
+                        } else if (isVideo) {
+                            // Both primary and fallback failed — show branded placeholder
                             VideoPlaceholder(
                                 title = apod.title,
                                 modifier = Modifier

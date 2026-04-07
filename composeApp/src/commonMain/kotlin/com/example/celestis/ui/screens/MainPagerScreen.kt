@@ -6,8 +6,11 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -71,7 +74,8 @@ fun MainPagerScreen(
     val discoverTopBarState = remember { TopBarState() }
     val favoriteTopBarState = remember { TopBarState() }
 
-    val customBottomBarHeight = 70.dp
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val customBottomBarHeight = 70.dp + navigationBarBottom
 
     // ViewModels for each screen
     val homeViewModel: HomeViewModel = koinViewModel()
