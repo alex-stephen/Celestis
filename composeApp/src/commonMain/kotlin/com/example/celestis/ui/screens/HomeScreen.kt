@@ -20,11 +20,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -152,7 +155,9 @@ fun HomeScreenSuccess(
 ) {
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
-    
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val appBarContentHeight = if (isLandscape) 58.dp else 81.dp
+
     var currentApod by remember { mutableStateOf(displayApod) }
     var isVideoPlaying by remember(currentApod.date) { mutableStateOf(false) }
     // Smooth transition coordination
@@ -168,7 +173,7 @@ fun HomeScreenSuccess(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val peekHeight = if (isLandscape) 50.dp else 194.dp
+        val peekHeight = if (isLandscape) 50.dp else bottomPadding + 100.dp
 
         val density = LocalDensity.current
         val screenHeightPx = with(density) { screenHeight.toPx() }
@@ -417,7 +422,7 @@ fun HomeScreenSuccess(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = if (isLandscape) 86.dp else 131.dp)
+                .padding(top = statusBarTop + appBarContentHeight)
                 .padding(horizontal = 16.dp)
                 .graphicsLayer { alpha = topBarAlpha }
         ) {
@@ -460,7 +465,7 @@ fun HomeScreenSuccess(
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + 40.dp)
+                .padding(bottom = bottomPadding + 18.dp)
         ) {
             val infiniteTransition = rememberInfiniteTransition(label = "bounce")
             val offsetY by infiniteTransition.animateFloat(

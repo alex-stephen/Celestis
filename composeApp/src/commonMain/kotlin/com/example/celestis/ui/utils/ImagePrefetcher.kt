@@ -6,6 +6,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.size.Precision
 import com.example.celestis.model.ApodResponse
+import com.example.celestis.ui.utils.VideoUrlUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -30,11 +31,17 @@ object ImagePrefetcher {
             apods.forEach { apod ->
                 // Prefetch standard resolution image
                 val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-                    apod.thumbnailUrl ?: apod.url
+                    // Prefer explicit thumbnailUrl, then derive YouTube thumbnail, then raw url
+                    apod.thumbnailUrl
+                        ?: apod.url?.let { url ->
+                            VideoUrlUtils.extractYouTubeId(url)
+                                ?.let { id -> VideoUrlUtils.getYouTubeThumbnail(id) }
+                        }
+                        ?: apod.url
                 } else {
                     apod.url
                 }
-                
+
                 if (imageUrl != null) {
                     val request = ImageRequest.Builder(context)
                         .data(imageUrl)
@@ -44,7 +51,7 @@ object ImagePrefetcher {
                         // Add size constraint to reduce memory usage - grid items are small
                         .size(400, 400)
                         .build()
-                    
+
                     imageLoader.enqueue(request)
                 }
             }
@@ -64,7 +71,12 @@ object ImagePrefetcher {
         scope.launch {
             // Prefetch standard image
             val imageUrl = if (apod.mediaType.equals("video", ignoreCase = true)) {
-                apod.thumbnailUrl ?: apod.url
+                apod.thumbnailUrl
+                    ?: apod.url?.let { url ->
+                        VideoUrlUtils.extractYouTubeId(url)
+                            ?.let { id -> VideoUrlUtils.getYouTubeThumbnail(id) }
+                    }
+                    ?: apod.url
             } else {
                 apod.url
             }

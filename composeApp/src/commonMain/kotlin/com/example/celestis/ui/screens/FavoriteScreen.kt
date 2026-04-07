@@ -9,9 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -116,6 +120,9 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
     topBarState: TopBarState
 ) {
     val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val gridCols = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 2
         WindowWidthSizeClass.Medium -> 3
@@ -130,7 +137,7 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(topBarState.nestedScrollConnection),
-            contentPadding = PaddingValues(top = if (isLandscape) 69.dp else 114.dp, bottom = 80.dp)
+            contentPadding = PaddingValues(top = statusBarTop + appBarContentHeight, bottom = 70.dp + navigationBarBottom + 10.dp)
         ) {
             items(
                 items = state.favorites,

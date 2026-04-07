@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -215,6 +218,8 @@ fun SharedTransitionScope.PhotoDetailContent(
     topBarState: TopBarState
 ) {
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
 
     val apod = state.apod
     val scrollState = rememberScrollState()
@@ -247,7 +252,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                 .verticalScroll(scrollState)
         ) {
             // Add top padding for the AppBar ContentPadding
-            Spacer(modifier = Modifier.height(if (isLandscape) 69.dp else 114.dp,))
+            Spacer(modifier = Modifier.height(statusBarTop + appBarContentHeight))
 
             // Check if media is video
             if (apod.isVideo()) {
