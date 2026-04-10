@@ -124,8 +124,8 @@ class HomeViewModel(
     }
 
     /**
-     * The Snappy Random Logic: Uses the cached image instantly with professional transition,
-     * then fetches the next one in the background.
+     * The Snappy Random Logic: Updates the UI immediately so the transition starts right away,
+     * then warms the next queued image in the background so subsequent taps are instant.
      */
     fun showNextRandom() {
         if (randomQueue.isEmpty()) {
@@ -134,36 +134,39 @@ class HomeViewModel(
         }
 
         viewModelScope.launch {
-            // Start loading state for smooth transition
             _isImageLoading.value = true
-            
-            val next = randomQueue.removeFirst()
-            
-            // Ensure image is in memory cache before showing
-            val request = ImageRequest.Builder(context)
-                .data(next.url)
-                .build()
-            val cached = imageLoader.memoryCache?.get(
-                coil3.memory.MemoryCache.Key(next.url ?: "")
-            )
-            if (cached == null) {
-                // Not in memory yet — let the shimmer show while we wait
-                imageLoader.execute(request)
-            }
-            
 
+            val next = randomQueue.removeFirst()
+
+            // Update UI immediately — shimmer covers while Coil loads from network/disk
             _randomApod.value = next
             _isShowingRandom.value = true
-            
-            _isImageLoading.value = false
 
             prefetchHdImage(next.urlHD)
+
+            // Pre-warm the next item so the following tap is instant
+            randomQueue.firstOrNull()?.url?.let { nextUrl ->
+                launch(Dispatchers.IO) {
+                    imageLoader.execute(
+                        ImageRequest.Builder(context)
+                            .data(nextUrl)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                    )
+                }
+            }
 
             // Check if we need to top up the tank
             if (randomQueue.size <= REFILL_THRESHOLD) {
                 refillQueue()
             }
         }
+    }
+
+    /** Called by the UI when the AsyncImage finishes rendering — clears the shimmer. */
+    fun onImageLoaded() {
+        _isImageLoading.value = false
     }
     
     /**

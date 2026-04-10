@@ -120,6 +120,7 @@ fun MainPagerScreen(
                     onFavoriteToggle = homeViewModel::toggleFavorite,
                     onShowHdImage = homeViewModel::showHdImage,
                     onHideHdImage = homeViewModel::hideHdImage,
+                    onImageLoaded = homeViewModel::onImageLoaded,
                     windowSizeClass = windowSizeClass,
                     hazeState = hazeState,
                     bottomPadding = if (isCompact) customBottomBarHeight else 0.dp
