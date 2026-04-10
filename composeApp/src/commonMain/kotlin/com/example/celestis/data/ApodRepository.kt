@@ -137,8 +137,8 @@ class ApodRepository(
             offset = offset
         ).executeAsList()
         
-        // If we have enough local results, return them
-        if (localResults.size >= pageSize || page > 0) {
+        // If we have a full page cached locally, return it without a network call
+        if (localResults.size >= pageSize) {
             return@withContext localResults.map { it.toResponse() }
         }
         
