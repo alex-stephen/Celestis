@@ -48,8 +48,6 @@ object ImagePrefetcher {
                         .memoryCachePolicy(CachePolicy.ENABLED)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .precision(Precision.INEXACT)
-                        // Add size constraint to reduce memory usage - grid items are small
-                        .size(400, 400)
                         .build()
 
                     imageLoader.enqueue(request)

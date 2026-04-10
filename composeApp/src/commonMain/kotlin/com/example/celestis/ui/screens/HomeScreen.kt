@@ -60,6 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -100,6 +101,7 @@ fun HomeScreen(
     onFavoriteToggle: (String, Boolean) -> Unit,
     onShowHdImage: (String?, String?) -> Unit,
     onHideHdImage: () -> Unit,
+    onImageLoaded: () -> Unit = {},
     windowSizeClass: WindowSizeClass,
     hazeState: HazeState,
     bottomPadding: Dp = 0.dp
@@ -123,6 +125,7 @@ fun HomeScreen(
                         hazeState = hazeState,
                         onShowHdImage = onShowHdImage,
                         onHideHdImage = onHideHdImage,
+                        onImageLoaded = onImageLoaded,
                         bottomPadding = bottomPadding
                     )
                 }
@@ -151,6 +154,7 @@ fun HomeScreenSuccess(
     hazeState: HazeState,
     onShowHdImage: (String?, String?) -> Unit,
     onHideHdImage: () -> Unit,
+    onImageLoaded: () -> Unit,
     bottomPadding: Dp
 ) {
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
@@ -237,6 +241,8 @@ fun HomeScreenSuccess(
 
                 when {
                     hasVideo -> {
+                        // No image load callback — dismiss shimmer immediately via effect
+                        LaunchedEffect(currentApod.date) { onImageLoaded() }
                         CelestisVideoPlayer(
                             videoUrl = currentApod.url ?: "",
                             modifier = Modifier.fillMaxSize(),
@@ -247,14 +253,38 @@ fun HomeScreenSuccess(
                         )
                     }
                     hasImage -> {
+                        if (!isLandscape) {
+                            Box(modifier = Modifier.fillMaxSize().blur(24.dp)) {
+                                AsyncImage(
+                                    model = currentApod.url,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.55f))
+                                )
+                            }
+                        }
                         AsyncImage(
                             model = currentApod.url,
                             contentDescription = currentApod.title,
-                            contentScale = if (isLandscape) ContentScale.Fit else ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center,
+                            onSuccess = { onImageLoaded() },
+                            onError = { onImageLoaded() },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = 1.25f
+                                    scaleY = 1.25f
+                                }
                         )
                     }
                     else -> {
+                        LaunchedEffect(currentApod.date) { onImageLoaded() }
                         MediaUnavailablePlaceholder(title = currentApod.title)
                     }
                 }
@@ -673,29 +703,45 @@ fun HomeScreenLoading() {
 @Composable
 fun ImageLoadingShimmer(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val shimmerX by infiniteTransition.animateFloat(
-        initialValue = -1200f,
-        targetValue = 1200f,
+
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
+            animation = tween(2500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "shimmer_x"
+        label = "shimmer_sweep"
     )
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.12f),
-                        Color.Transparent
+            .drawWithContent {
+                drawContent()
+
+                // Center starts at -20% of screen height (fully off-top, alpha=0 at screen edge).
+                // At progress=1 the center is at 125% (fully off-bottom, alpha=0).
+                // Both endpoints are invisible so the Restart jump is seamless.
+                // The band becomes visible around the 1/3 mark as it descends into view.
+                val bandHalfHeight = size.height * 0.18f
+                val centerY = size.height * (-0.20f + progress * 1.45f)
+
+                drawRect(
+                    brush = Brush.linearGradient(
+                        colorStops = arrayOf(
+                            0f   to Color.Transparent,
+                            0.2f to Color.White.copy(alpha = 0.03f),
+                            0.5f to Color.White.copy(alpha = 0.09f),
+                            0.8f to Color.White.copy(alpha = 0.03f),
+                            1f   to Color.Transparent,
+                        ),
+                        start = Offset(0f, centerY - bandHalfHeight),
+                        end   = Offset(size.width, centerY + bandHalfHeight)
                     ),
-                    start = Offset(shimmerX, 0f),
-                    end = Offset(shimmerX + 600f, 1400f)
+                    size = size
                 )
-            )
+            }
     )
 }
 
