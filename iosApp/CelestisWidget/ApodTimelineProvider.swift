@@ -1,175 +1,206 @@
 import WidgetKit
 import SwiftUI
-import ComposeApp
+import Foundation
 
 /**
- * Timeline provider for the APOD widget.
- * 
- * This class is responsible for providing timeline entries to WidgetKit,
- * which determines when and what to display in the widget.
- * 
- * Key Integration Points with Shared Kotlin Code:
- * 
- * 1. **Accessing ApodRepository**:
- *    ```swift
- *    let koinHelper = KoinHelperKt.doInitKoin()
- *    let repository = // Get from Koin container
- *    ```
- * 
- * 2. **Reading Latest APOD from SQLDelight**:
- *    The shared ApodRepository provides `observeLatestApodForWidget()` Flow.
- *    You can collect this Flow to get the cached APOD:
- *    ```swift
- *    repository.observeLatestApodForWidget() // Returns Flow<ApodEntity?>
- *    ```
- * 
- * 3. **Loading Pre-Downloaded Images**:
- *    Images are stored in the app's file directory:
- *    ```swift
- *    let imagePath = "\(fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0])/apod_images/apod_\(date).jpg"
- *    let imageData = try? Data(contentsOf: URL(fileURLWithPath: imagePath))
- *    ```
- * 
- * Timeline Strategy:
- * - Widgets refresh based on APOD update schedule (daily at 6:00 AM UTC)
- * - No network calls in widget code (only read from cache)
- * - Background app refresh handles syncing new APOD data
+ * Timeline provider for the Celestis APOD widget.
+ *
+ * ## How automatic updates work (no app launch required)
+ *
+ * 1. **BGAppRefreshTask** – iOS calls `handleAppRefresh()` in iOSApp.swift daily.
+ *    The Kotlin `IosSyncManager` fetches the latest APOD, writes it to the shared
+ *    App Group UserDefaults/file container, then Swift calls
+ *    `WidgetCenter.shared.reloadAllTimelines()`.  WidgetKit immediately calls
+ *    `getTimeline()`  on this provider, which reads the freshly written data.
+ *
+ * 2. **Timeline policy** – `getTimeline()` schedules the next WidgetKit refresh
+ *    for 6:30 AM UTC.  If `BGAppRefreshTask` somehow didn't run, WidgetKit will
+ *    call `getTimeline()` at 6:30 AM UTC anyway.  At that point this provider
+ *    fetches fresh data directly from the network as a fallback.
+ *
+ * 3. **Network fallback** – If the App Group has no data *or* the cached APOD
+ *    is stale (not today's), this provider makes a direct URLSession call to
+ *    the Celestis API and caches the result into the App Group.  This makes
+ *    the widget self-sufficient: it works even before the user opens the app.
+ *
+ * ## Data sharing between the app and the widget extension
+ *
+ * Both the main app target and the CelestisWidget extension must have the
+ * "group.com.example.celestis" App Group capability enabled in their Xcode
+ * entitlements.  The IosSyncManager (Kotlin) writes to this group after every
+ * successful sync; this provider reads from it.
+ *
+ * Keys written by IosSyncManager / this provider:
+ *   - apod_title          – APOD title string
+ *   - apod_date           – APOD date "YYYY-MM-DD"
+ *   - apod_explanation    – APOD explanation text
+ *   - apod_api_base_url   – Backend base URL (set once on first app launch)
+ *
+ * Image path: `<AppGroupContainer>/apod_images/apod_<date>.jpg`
  */
 struct ApodTimelineProvider: TimelineProvider {
-    
-    // MARK: - TimelineProvider Protocol
-    
-    /**
-     * Provides a placeholder entry for initial widget rendering.
-     * This is shown while the widget is loading for the first time.
-     */
+
+    // MARK: - Constants
+
+    private let appGroupID = "group.com.example.celestis"
+
+    // MARK: - TimelineProvider
+
+    /// Synchronous placeholder shown while WidgetKit renders for the first time.
     func placeholder(in context: Context) -> ApodWidgetEntry {
         ApodWidgetEntry(
             date: Date(),
             title: "Astronomy Picture of the Day",
-            apodDate: "2026-03-29",
+            apodDate: utcTodayString(),
             imageData: nil,
-            explanation: "Loading the latest cosmic wonder..."
+            explanation: "Loading today's cosmic wonder…"
         )
     }
-    
-    /**
-     * Provides a snapshot entry for widget gallery/preview.
-     * This should return quickly for smooth UI.
-     */
+
+    /// Fast snapshot used in the widget gallery / preview sheet.
     func getSnapshot(in context: Context, completion: @escaping (ApodWidgetEntry) -> Void) {
-        // For previews, use a placeholder
         if context.isPreview {
             completion(placeholder(in: context))
             return
         }
-        
-        // For actual snapshot, try to load cached data
         Task {
-            let entry = await loadCachedApodEntry()
+            let entry = await buildEntry()
             completion(entry)
         }
     }
-    
-    /**
-     * Provides the timeline of entries for the widget.
-     * 
-     * This is where we integrate with the shared Kotlin code to:
-     * 1. Access the ApodRepository via Koin
-     * 2. Read the latest cached APOD from SQLDelight
-     * 3. Load pre-downloaded image data
-     * 4. Create timeline entries
-     */
+
+    /// Called by WidgetKit whenever the timeline expires or after
+    /// `WidgetCenter.shared.reloadAllTimelines()` is invoked.
     func getTimeline(in context: Context, completion: @escaping (Timeline<ApodWidgetEntry>) -> Void) {
         Task {
-            let entry = await loadCachedApodEntry()
-            
-            // Create timeline with next update at 6:00 AM UTC tomorrow
-            // This aligns with the APOD sync schedule
-            let nextUpdate = getNextUpdateDate()
-            let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-            
+            let entry = await buildEntry()
+            let timeline = Timeline(
+                entries: [entry],
+                policy: .after(nextRefreshDate())
+            )
             completion(timeline)
         }
     }
-    
-    // MARK: - Helper Methods
-    
-    /**
-     * Loads the cached APOD entry from the shared Kotlin code.
-     * 
-     * IMPLEMENTATION REQUIRED:
-     * This is where you'll integrate with the shared ApodRepository.
-     * 
-     * Steps to implement:
-     * 1. Access Koin to get ApodRepository instance
-     * 2. Call repository.observeLatestApodForWidget() to get the Flow
-     * 3. Collect the first emission from the Flow to get ApodEntity
-     * 4. Load the image from file storage using the entity's date
-     * 5. Create and return an ApodWidgetEntry
-     * 
-     * Example implementation:
-     * ```
-     * // Initialize Koin if needed
-     * KoinHelperKt.doInitKoin()
-     * 
-     * // Get repository from Koin (you'll need to expose this via KoinHelper)
-     * let repository = KoinHelperKt.getApodRepository()
-     * 
-     * // Collect latest APOD (convert Kotlin Flow to Swift async)
-     * let apodEntity = try? await repository.observeLatestApodForWidget().first()
-     * 
-     * // Load image from file storage
-     * let imagePath = getApodImagePath(date: apodEntity?.date ?? "")
-     * let imageData = try? Data(contentsOf: URL(fileURLWithPath: imagePath))
-     * 
-     * // Create entry
-     * return ApodWidgetEntry(
-     *     date: Date(),
-     *     title: apodEntity?.title ?? "APOD",
-     *     apodDate: apodEntity?.date ?? "",
-     *     imageData: imageData,
-     *     explanation: apodEntity?.explanation
-     * )
-     * ```
-     */
-    private func loadCachedApodEntry() async -> ApodWidgetEntry {
-        // TODO: Implement integration with shared Kotlin code
-        // For now, return a placeholder
-        
-        // PLACEHOLDER IMPLEMENTATION - Replace with actual Kotlin integration
+
+    // MARK: - Entry building
+
+    /// Returns the best available entry:
+    ///   1. Fresh cached data from the App Group (has today's image).
+    ///   2. Network-fetched data (written back to App Group for next time).
+    ///   3. Stale cached data (better than nothing).
+    ///   4. Placeholder.
+    private func buildEntry() async -> ApodWidgetEntry {
+        // 1. Try App Group cache first – fastest and offline-capable.
+        if let cached = loadFromAppGroup(), isFreshEntry(cached) {
+            return cached
+        }
+
+        // 2. Fetch from network when cache is missing or stale.
+        if let fetched = await fetchFromNetwork() {
+            persistToAppGroup(fetched)   // update cache for next time
+            return fetched
+        }
+
+        // 3. Return stale cache rather than an empty placeholder.
+        if let stale = loadFromAppGroup() {
+            return stale
+        }
+
+        // 4. Nothing available yet.
+        return placeholder(in: .init())
+    }
+
+    // MARK: - App Group cache
+
+    private func loadFromAppGroup() -> ApodWidgetEntry? {
+        guard
+            let defaults = UserDefaults(suiteName: appGroupID),
+            let apodDate = defaults.string(forKey: "apod_date"),
+            !apodDate.isEmpty
+        else { return nil }
+
+        let title = defaults.string(forKey: "apod_title") ?? "Astronomy Picture of the Day"
+        let explanation = defaults.string(forKey: "apod_explanation")
+        let imageData = loadImageFromAppGroup(date: apodDate)
+
         return ApodWidgetEntry(
             date: Date(),
-            title: "Pillars of Creation",
-            apodDate: "2026-03-29",
-            imageData: nil,
-            explanation: "Replace this with data from shared ApodRepository"
+            title: title,
+            apodDate: apodDate,
+            imageData: imageData,
+            explanation: explanation
         )
-        
-        /* PRODUCTION IMPLEMENTATION SHOULD BE:
-        
+    }
+
+    private func loadImageFromAppGroup(date: String) -> Data? {
+        guard
+            let containerURL = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: appGroupID)
+        else { return nil }
+
+        let imageURL = containerURL
+            .appendingPathComponent("apod_images")
+            .appendingPathComponent("apod_\(date).jpg")
+
+        return try? Data(contentsOf: imageURL)
+    }
+
+    /// Persists a network-fetched entry into the App Group so future timeline
+    /// reloads don't need another network round-trip.
+    private func persistToAppGroup(_ entry: ApodWidgetEntry) {
+        guard let defaults = UserDefaults(suiteName: appGroupID) else { return }
+        defaults.set(entry.title, forKey: "apod_title")
+        defaults.set(entry.apodDate, forKey: "apod_date")
+        if let explanation = entry.explanation {
+            defaults.set(explanation, forKey: "apod_explanation")
+        }
+        defaults.synchronize()
+
+        // Save image file.
+        if
+            let imageData = entry.imageData,
+            let containerURL = FileManager.default.containerURL(
+                forSecurityApplicationGroupIdentifier: appGroupID)
+        {
+            let imagesDir = containerURL.appendingPathComponent("apod_images")
+            try? FileManager.default.createDirectory(
+                at: imagesDir, withIntermediateDirectories: true)
+            let imagePath = imagesDir.appendingPathComponent("apod_\(entry.apodDate).jpg")
+            try? imageData.write(to: imagePath)
+        }
+    }
+
+    /// An entry is "fresh" if it carries today's date AND has image data.
+    private func isFreshEntry(_ entry: ApodWidgetEntry) -> Bool {
+        entry.apodDate == utcTodayString() && entry.imageData != nil
+    }
+
+    // MARK: - Network fetch
+
+    private func fetchFromNetwork() async -> ApodWidgetEntry? {
+        // The API base URL is written by the main app (from BuildKonfig) into the
+        // shared App Group on first launch. Never hardcode it here.
+        guard
+            let baseURL = UserDefaults(suiteName: appGroupID)?
+                .string(forKey: "apod_api_base_url"),
+            let url = URL(string: baseURL)
+        else { return nil }
+
         do {
-            // Initialize Koin and get repository
-            KoinHelperKt.doInitKoin()
-            
-            // Access ApodRepository via KoinHelper
-            // You'll need to add this function to KoinHelper.kt:
-            // fun getApodRepository(): ApodRepository = get()
-            guard let repository = KoinHelperKt.getApodRepository() else {
-                return placeholder(in: WidgetContext())
-            }
-            
-            // Get latest APOD from SQLDelight (convert Flow to Swift async)
-            // This requires a bridge function in Kotlin to convert Flow to suspend function
-            let apodEntity = try await repository.getLatestApodForWidget()
-            
-            guard let apod = apodEntity else {
-                return placeholder(in: WidgetContext())
-            }
-            
-            // Load pre-downloaded image
-            let imageData = loadImageData(for: apod.date)
-            
+            let (data, response) = try await URLSession.shared.data(from: url)
+
+            guard
+                let http = response as? HTTPURLResponse,
+                http.statusCode == 200
+            else { return nil }
+
+            let apod = try JSONDecoder().decode(ApodNetworkResponse.self, from: data)
+
+            // Determine which URL to use for the image.
+            let isVideo = apod.mediaType?.lowercased() == "video"
+            let imageURLString = isVideo ? (apod.thumbnailUrl ?? apod.url) : apod.url
+            let imageData = await downloadImageData(from: imageURLString)
+
             return ApodWidgetEntry(
                 date: Date(),
                 title: apod.title ?? "Astronomy Picture of the Day",
@@ -178,61 +209,65 @@ struct ApodTimelineProvider: TimelineProvider {
                 explanation: apod.explanation
             )
         } catch {
-            print("Error loading APOD from shared code: \(error)")
-            return placeholder(in: WidgetContext())
-        }
-        */
-    }
-    
-    /**
-     * Loads image data from the app's file storage.
-     * Images are stored at: Documents/apod_images/apod_{date}.jpg
-     * 
-     * IMPLEMENTATION NOTE:
-     * This path should match where ApodSyncWorker stores images on iOS.
-     * You may need to adjust based on your actual iOS file storage location.
-     */
-    private func loadImageData(for date: String) -> Data? {
-        let fileManager = FileManager.default
-        
-        // Get documents directory (shared with main app)
-        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             return nil
         }
-        
-        // Construct image path
-        let imagePath = documentsURL
-            .appendingPathComponent("apod_images")
-            .appendingPathComponent("apod_\(date).jpg")
-        
-        // Load image data
-        return try? Data(contentsOf: imagePath)
     }
-    
-    /**
-     * Calculates the next update time for the widget.
-     * Updates at 6:30 AM UTC (30 minutes after APOD sync at 6:00 AM).
-     */
-    private func getNextUpdateDate() -> Date {
-        let calendar = Calendar(identifier: .gregorian)
-        let now = Date()
-        
-        // Get current UTC time components
-        var components = calendar.dateComponents(in: TimeZone(identifier: "UTC")!, from: now)
-        
-        // If it's past 6:30 AM UTC today, schedule for tomorrow
-        if let hour = components.hour, let minute = components.minute {
-            if hour > 6 || (hour == 6 && minute >= 30) {
-                // Add one day
-                components.day! += 1
-            }
+
+    private func downloadImageData(from urlString: String?) async -> Data? {
+        guard
+            let urlString = urlString,
+            let url = URL(string: urlString)
+        else { return nil }
+
+        return try? await URLSession.shared.data(from: url).0
+    }
+
+    // MARK: - Timeline scheduling
+
+    /// Schedules the next widget refresh for 6:30 AM UTC – 30 minutes after
+    /// NASA publishes the daily APOD and the BGAppRefreshTask should have run.
+    private func nextRefreshDate() -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        guard let utc = TimeZone(identifier: "UTC") else {
+            return Date().addingTimeInterval(6 * 3600)
         }
-        
-        // Set to 6:30 AM UTC
+        calendar.timeZone = utc
+
+        let now = Date()
+        var components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second], from: now)
+
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+
+        // If it is already past 06:30 UTC, target tomorrow.
+        if hour > 6 || (hour == 6 && minute >= 30) {
+            components.day = (components.day ?? 0) + 1
+        }
         components.hour = 6
         components.minute = 30
         components.second = 0
-        
-        return calendar.date(from: components) ?? Date().addingTimeInterval(3600) // Fallback: 1 hour from now
+        components.nanosecond = 0
+
+        return calendar.date(from: components) ?? Date().addingTimeInterval(6 * 3600)
     }
+
+    private func utcTodayString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        return formatter.string(from: Date())
+    }
+}
+
+// MARK: - Network response model
+
+/// Mirrors the JSON shape returned by the Celestis backend (camelCase keys).
+private struct ApodNetworkResponse: Decodable {
+    let date: String
+    let title: String?
+    let explanation: String?
+    let url: String?
+    let mediaType: String?
+    let thumbnailUrl: String?
 }

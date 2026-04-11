@@ -4,6 +4,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.PlayArrow
@@ -85,8 +92,11 @@ import com.example.celestis.ui.components.CelestisRangePicker
 import com.example.celestis.ui.components.ShimmerApodGrid
 import com.example.celestis.ui.components.VideoPlaceholder
 import com.example.celestis.ui.navigation.TopBarState
+import com.example.celestis.ui.utils.HapticFeedbackType
 import com.example.celestis.ui.utils.VideoUrlUtils
+import com.example.celestis.ui.utils.createHapticFeedback
 import com.example.celestis.ui.viewModels.DiscoverUiState
+import com.example.celestis.ui.viewModels.DisplayMode
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -103,6 +113,7 @@ fun SharedTransitionScope.DiscoverScreen(
     onLoadMoreSearchResults: () -> Unit,
     onLoadMoreRangeResults: () -> Unit,
     onDateRangeSelected: (Long?, Long?) -> Unit,
+    onRandomClick: () -> Unit,
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
@@ -175,6 +186,9 @@ fun SharedTransitionScope.DiscoverScreen(
                     onQueryChange = onQueryChange,
                     onSearch = onSearch,
                     onOpenDatePicker = { showDatePicker = true },
+                    onRandomClick = onRandomClick,
+                    isRandomLoading = uiState is DiscoverUiState.Loading ||
+                        (uiState is DiscoverUiState.Success && uiState.isRefreshing && uiState.displayMode == DisplayMode.RANDOM),
                     hazeState = hazeState
                 )
             }
@@ -220,103 +234,119 @@ fun SharedTransitionScope.DiscoverScreenGrid(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        if (state.searchQuery.isEmpty()) {
-            // MODE A: Date Range Feed with Pagination
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(gridCols),
-                contentPadding = contentPadding,
-                modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
-            )
-            {
-                itemsIndexed(
-                    items = state.rangeApod,
-                    key = { _, apod -> apod.date }
-                ) { index, apod ->
-                    ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
-                    
-                    // Trigger load more when near end (15 items before the last)
-                    val shouldLoadMore by remember(index, state.rangeApod.size) {
-                        derivedStateOf {
-                            index >= state.rangeApod.size - 15 && state.rangeApod.isNotEmpty()
-                        }
-                    }
-                    
-                    if (shouldLoadMore) {
-                        LaunchedEffect(Unit) {
-                            onLoadMoreRangeResults()
-                        }
-                    }
-                }
-            }
-        } else {
-            // MODE B: Search Results with Pagination
-            val searchState = state.searchResults
-            if (searchState.isLoading && searchState.items.isEmpty()) {
-                ShimmerApodGrid(columns = gridCols, itemCount = 30)
-            } else {
+        when (state.displayMode) {
+            DisplayMode.RANDOM -> {
+                // MODE C: Random APODs (static 30, no pagination)
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridCols),
                     contentPadding = contentPadding,
                     modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
                 ) {
-                    // Show search results
                     itemsIndexed(
-                        items = searchState.items,
+                        items = state.randomApods,
+                        key = { _, apod -> apod.date }
+                    ) { _, apod ->
+                        ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
+                    }
+                }
+            }
+            DisplayMode.RANGE -> {
+                // MODE A: Date Range Feed with Pagination
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridCols),
+                    contentPadding = contentPadding,
+                    modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                ) {
+                    itemsIndexed(
+                        items = state.rangeApod,
                         key = { _, apod -> apod.date }
                     ) { index, apod ->
                         ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
 
-                        // Trigger load more when near end
-                        val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
+                        // Trigger load more when near end (15 items before the last)
+                        val shouldLoadMore by remember(index, state.rangeApod.size) {
                             derivedStateOf {
-                                index >= searchState.items.size - 15 &&
-                                        searchState.hasMore &&
-                                        !searchState.isLoadingMore
+                                index >= state.rangeApod.size - 15 && state.rangeApod.isNotEmpty()
                             }
                         }
 
                         if (shouldLoadMore) {
                             LaunchedEffect(Unit) {
-                                onLoadMoreSearchResults()
+                                onLoadMoreRangeResults()
                             }
                         }
                     }
+                }
+            }
+            DisplayMode.SEARCH -> {
+                // MODE B: Search Results with Pagination
+                val searchState = state.searchResults
+                if (searchState.isLoading && searchState.items.isEmpty()) {
+                    ShimmerApodGrid(columns = gridCols, itemCount = 30)
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridCols),
+                        contentPadding = contentPadding,
+                        modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                    ) {
+                        itemsIndexed(
+                            items = searchState.items,
+                            key = { _, apod -> apod.date }
+                        ) { index, apod ->
+                            ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
 
-                    // Show loading more indicator at bottom
-                    if (searchState.isLoadingMore) {
-                        item(span = { GridItemSpan(gridCols) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
+                            // Trigger load more when near end
+                            val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
+                                derivedStateOf {
+                                    index >= searchState.items.size - 15 &&
+                                            searchState.hasMore &&
+                                            !searchState.isLoadingMore
+                                }
+                            }
+
+                            if (shouldLoadMore) {
+                                LaunchedEffect(Unit) {
+                                    onLoadMoreSearchResults()
+                                }
                             }
                         }
-                    }
 
-                    // Show error if present
-                    if (searchState.error != null) {
-                        item(span = { GridItemSpan(gridCols) }) {
-                            Text(
-                                text = "Error: ${searchState.error}",
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.padding(16.dp)
-                            )
+                        // Show loading more indicator at bottom
+                        if (searchState.isLoadingMore) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
                         }
-                    }
 
-                    // Show "no results" message
-                    if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
-                        item(span = { GridItemSpan(gridCols) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("No results found for \"${state.searchQuery}\"")
+                        // Show error if present
+                        if (searchState.error != null) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Text(
+                                    text = "Error: ${searchState.error}",
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+
+                        // Show "no results" message
+                        if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No results found for \"${state.searchQuery}\"")
+                                }
                             }
                         }
                     }
@@ -549,11 +579,14 @@ fun DiscoverSearchAppBar(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onOpenDatePicker: () -> Unit,
+    onRandomClick: () -> Unit,
+    isRandomLoading: Boolean,
     hazeState: HazeState,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    
+    val haptic = remember { createHapticFeedback() }
+
     // Outer Surface: Background extends through status bar
     Surface(
         modifier = modifier
@@ -589,6 +622,36 @@ fun DiscoverSearchAppBar(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Random button (Dice) — rainbow cycling while loading, disabled to prevent spam
+            val rainbowTransition = rememberInfiniteTransition(label = "DiceRainbow")
+            val hue by rainbowTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "DiceHue"
+            )
+            val diceTint = if (isRandomLoading) {
+                Color.hsv(hue = hue, saturation = 0.8f, value = 1f)
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+            IconButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.DICE_ROLL)
+                    onRandomClick()
+                },
+                enabled = !isRandomLoading
+            ) {
+                Icon(
+                    Icons.Default.Casino,
+                    contentDescription = "Random",
+                    tint = diceTint.copy(alpha = if (isRandomLoading) 0.85f else 1f)
+                )
+            }
+
             // Sleek, embedded Search Field
             BasicTextField(
                 value = query,

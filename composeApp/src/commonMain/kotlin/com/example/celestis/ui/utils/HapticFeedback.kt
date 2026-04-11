@@ -10,7 +10,8 @@ enum class HapticFeedbackType {
     HEAVY_IMPACT,
     SUCCESS,
     WARNING,
-    ERROR
+    ERROR,
+    DICE_ROLL
 }
 
 expect fun createHapticFeedback(): HapticFeedback

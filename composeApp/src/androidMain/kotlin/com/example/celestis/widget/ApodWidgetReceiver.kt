@@ -2,6 +2,7 @@ package com.example.celestis.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -15,26 +16,30 @@ import com.example.celestis.sync.ApodSyncWorker
 
 /**
  * AppWidgetProvider for the APOD widget.
- * 
- * This receiver handles widget lifecycle events:
- * - Widget added to home screen (triggers immediate sync)
- * - Widget removed from home screen
- * - Widget update requests
- * - System broadcasts
- * 
- * Glance handles most of the heavy lifting, so this is a simple delegate
- * to the ApodWidget implementation.
+ *
+ * Handles widget lifecycle events and ensures the displayed APOD is always
+ * up-to-date:
+ *
+ * • **Widget added / periodic update** (`onUpdate`) – triggers an expedited
+ *   one-time sync so the widget shows content immediately.
+ *
+ * • **Date change** (`ACTION_DATE_CHANGED`, `ACTION_TIME_SET`) – triggers an
+ *   expedited sync as soon as the system clock rolls over to a new day.  This
+ *   is the primary safeguard against stale "yesterday's APOD" on the widget:
+ *   even if WorkManager's 24-hour periodic job is delayed by Doze mode or
+ *   OEM battery restrictions, the date-change broadcast fires reliably at
+ *   midnight local time and kicks off a fresh sync.
+ *
+ * Glance handles most of the heavy lifting; this is a lean delegate to
+ * [ApodWidget].
  */
 class ApodWidgetReceiver : GlanceAppWidgetReceiver() {
-    
-    /**
-     * The GlanceAppWidget instance that this receiver manages.
-     */
+
     override val glanceAppWidget: GlanceAppWidget = ApodWidget()
-    
+
     /**
-     * Called when widgets are added or enabled.
-     * Triggers an immediate sync if this is the first widget being added.
+     * Called when widgets are added or when the system requests a periodic
+     * update (controlled by `updatePeriodMillis` in apod_widget_info.xml).
      */
     override fun onUpdate(
         context: Context,
@@ -42,40 +47,68 @@ class ApodWidgetReceiver : GlanceAppWidgetReceiver() {
         appWidgetIds: IntArray
     ) {
         super.onUpdate(context, appWidgetManager, appWidgetIds)
-        
-        // If widgets are being added, trigger an immediate sync
+
         if (appWidgetIds.isNotEmpty()) {
-            Log.d(TAG, "Widget(s) added/updated: ${appWidgetIds.size}. Triggering immediate sync.")
+            Log.d(TAG, "onUpdate – ${appWidgetIds.size} widget(s). Triggering immediate sync.")
             triggerImmediateSync(context)
         }
     }
-    
+
     /**
-     * Triggers an immediate expedited one-time sync to populate the widget with data.
-     * Uses expedited work to ensure it runs quickly even in Doze mode.
-     * This ensures the widget shows content immediately instead of waiting
-     * until the scheduled 5:00 AM UTC sync.
+     * Intercepts system broadcasts that signal a date change so we can kick
+     * off a fresh sync the moment the day rolls over, independent of
+     * WorkManager's periodic schedule.
+     *
+     * Handled actions:
+     * • `ACTION_DATE_CHANGED` – fired at local midnight by the OS.
+     * • `ACTION_TIME_CHANGED` – fired when the user or NTP adjusts the clock
+     *                           (can also cause a date change).
      */
-    private fun triggerImmediateSync(context: Context) {
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+
+        when (intent.action) {
+            Intent.ACTION_DATE_CHANGED, Intent.ACTION_TIME_CHANGED -> {
+                Log.d(TAG, "Date/time change detected (${intent.action}). Triggering sync.")
+                // Use REPLACE so we always start a fresh sync on a new day,
+                // even if a previous immediate sync is still pending.
+                triggerImmediateSync(context, policy = ExistingWorkPolicy.REPLACE)
+            }
+        }
+    }
+
+    /**
+     * Enqueues an expedited one-time sync.
+     *
+     * @param policy How to handle a pre-existing pending sync with the same
+     *               unique name.  Defaults to [ExistingWorkPolicy.KEEP] for
+     *               normal periodic updates (avoids cancelling an in-flight
+     *               download).  Date-change events use [ExistingWorkPolicy.REPLACE]
+     *               to guarantee a fresh attempt on the new day.
+     */
+    private fun triggerImmediateSync(
+        context: Context,
+        policy: ExistingWorkPolicy = ExistingWorkPolicy.KEEP
+    ) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
-        
+
         val immediateSync = OneTimeWorkRequestBuilder<ApodSyncWorker>()
             .setConstraints(constraints)
             .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .addTag(IMMEDIATE_SYNC_TAG)
             .build()
-        
-        // Use unique work to prevent duplicate requests
+
         WorkManager.getInstance(context).enqueueUniqueWork(
             IMMEDIATE_SYNC_TAG,
-            ExistingWorkPolicy.KEEP,
+            policy,
             immediateSync
         )
-        Log.d(TAG, "Expedited immediate sync work enqueued")
+
+        Log.d(TAG, "Expedited immediate sync enqueued (policy=$policy)")
     }
-    
+
     companion object {
         private const val TAG = "ApodWidgetReceiver"
         private const val IMMEDIATE_SYNC_TAG = "apod_immediate_sync"

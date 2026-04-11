@@ -39,8 +39,19 @@
         <receiver
             android:name=".widget.ApodWidgetReceiver"
             android:exported="true">
+            <!-- Standard widget update cycle (controlled by updatePeriodMillis) -->
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <!--
+                Date/time change broadcasts ensure the widget triggers a fresh
+                sync the moment the day rolls over, even if WorkManager's
+                periodic job is delayed by Doze mode or OEM battery restrictions.
+                These are protected system broadcasts — no permission needed.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

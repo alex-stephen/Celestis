@@ -85,7 +85,6 @@ fun MainPagerScreen(
     // Collect UI states
     val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
     val isShowingRandom by homeViewModel.isShowingRandom.collectAsStateWithLifecycle()
-    val isFetchingRandom by homeViewModel.isRefilling.collectAsStateWithLifecycle()
     val isImageLoading by homeViewModel.isImageLoading.collectAsStateWithLifecycle()
 
     val discoverUiState by discoverViewModel.uiState.collectAsStateWithLifecycle()
@@ -112,7 +111,6 @@ fun MainPagerScreen(
                 NavItem.Home -> HomeScreen(
                     uiState = homeUiState,
                     isShowingRandom = isShowingRandom,
-                    isFetchingRandom = isFetchingRandom,
                     isImageLoading = isImageLoading,
                     onShare = homeViewModel::shareApod,
                     onRefresh = homeViewModel::showNextRandom,
@@ -134,6 +132,7 @@ fun MainPagerScreen(
                     onLoadMoreSearchResults = discoverViewModel::loadMoreSearchResults,
                     onLoadMoreRangeResults = discoverViewModel::loadMoreRangeResults,
                     onDateRangeSelected = discoverViewModel::onDateRangeSelected,
+                    onRandomClick = discoverViewModel::fetchRandom,
                     windowSizeClass = windowSizeClass,
                     onPhotoDetailClick = {
                         onNavigateToDetail(it.date)
@@ -193,6 +192,7 @@ private fun DiscoverScreenWrapper(
     onLoadMoreSearchResults: () -> Unit,
     onLoadMoreRangeResults: () -> Unit,
     onDateRangeSelected: (Long?, Long?) -> Unit,
+    onRandomClick: () -> Unit,
     windowSizeClass: WindowSizeClass,
     onPhotoDetailClick: (ApodResponse) -> Unit,
     hazeState: HazeState,
@@ -208,6 +208,7 @@ private fun DiscoverScreenWrapper(
                 onLoadMoreSearchResults = onLoadMoreSearchResults,
                 onLoadMoreRangeResults = onLoadMoreRangeResults,
                 onDateRangeSelected = onDateRangeSelected,
+                onRandomClick = onRandomClick,
                 windowSizeClass = windowSizeClass,
                 onPhotoDetailClick = onPhotoDetailClick,
                 hazeState = hazeState,
