@@ -28,12 +28,16 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
+enum class DisplayMode { RANGE, SEARCH, RANDOM }
+
 sealed interface DiscoverUiState {
     object Loading : DiscoverUiState
     data class Success(
         val rangeApod: List<ApodResponse>,
         val searchQuery: String,
         val searchResults: PaginatedSearchState,
+        val displayMode: DisplayMode,
+        val randomApods: List<ApodResponse>,
         val isRefreshing: Boolean = false,
         val isOfflineMode: Boolean = false
     ) : DiscoverUiState
@@ -71,7 +75,8 @@ class DiscoverViewModel(
     private val networkMonitor: NetworkMonitor
 ) : ViewModel() {
     private val _rangeApod = MutableStateFlow<List<ApodResponse>>(emptyList())
-    private val _isRefreshing = MutableStateFlow(false)
+    // Start as true so the initial combine emission correctly shows Loading
+    private val _isRefreshing = MutableStateFlow(true)
     private val _errorMessage = MutableStateFlow<String?>(null)
 
     private val _searchQuery = MutableStateFlow("")
@@ -81,6 +86,9 @@ class DiscoverViewModel(
     private val searchState: StateFlow<PaginatedSearchState> = _searchState.asStateFlow()
 
     private val _rangePaginationState = MutableStateFlow(RangePaginationState())
+    // Start as RANDOM so the initial combine emission maps to the correct mode
+    private val _displayMode = MutableStateFlow(DisplayMode.RANDOM)
+    private val _randomApods = MutableStateFlow<List<ApodResponse>>(emptyList())
 
     private var searchJob: Job? = null
 
@@ -102,24 +110,37 @@ class DiscoverViewModel(
         Triple(refreshing, error, isOnline)
     }
 
-    // Combine the two grouped flows for final UI state
+    // Random/display mode flows
+    private val modeState = combine(
+        _displayMode,
+        _randomApods
+    ) { mode, random ->
+        Pair(mode, random)
+    }
+
+    // Combine all grouped flows for final UI state
     val uiState: StateFlow<DiscoverUiState> = combine(
         dataState,
-        controlState
-    ) { data, control ->
+        controlState,
+        modeState
+    ) { data, control, mode ->
         val (range, query, search) = data
         val (refreshing, error, isOnline) = control
-        
+        val (displayMode, randomApods) = mode
+
         when {
             error != null -> DiscoverUiState.Error(error)
             refreshing &&
             range.isEmpty() &&
+            randomApods.isEmpty() &&
             query.isEmpty() &&
             !search.isLoading -> DiscoverUiState.Loading
             else -> DiscoverUiState.Success(
                 rangeApod = range,
                 searchQuery = query,
                 searchResults = search,
+                displayMode = displayMode,
+                randomApods = randomApods,
                 isRefreshing = refreshing,
                 isOfflineMode = !isOnline
             )
@@ -131,8 +152,8 @@ class DiscoverViewModel(
     )
 
     init {
-        // Initial Fetch for the Discovery Feed
-        showRange()
+        // Initial Fetch: Random APODs for a unique discover experience
+        fetchRandom()
         
         // Debounce search query changes
         viewModelScope.launch {
@@ -163,10 +184,37 @@ class DiscoverViewModel(
         )
     }
 
+    fun fetchRandom() {
+        viewModelScope.launch(Dispatchers.Default) {
+            _isRefreshing.value = true
+            _errorMessage.value = null
+            _displayMode.value = DisplayMode.RANDOM
+            _randomApods.value = emptyList() // Clear so Loading state triggers
+            _searchQuery.value = ""
+            try {
+                val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
+                val results = if (isOnline) {
+                    repository.fetchRandom(30)
+                } else {
+                    repository.getRandomCachedApods(30).map { it.toResponse() }
+                }
+                _randomApods.value = results
+                if (results.isNotEmpty()) {
+                    prefetchVisibleImages(results.take(12))
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Unable to fetch random photos. Please check your connection."
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     fun showRange() {
         viewModelScope.launch(Dispatchers.Default) {
             _isRefreshing.value = true
             _errorMessage.value = null
+            _displayMode.value = DisplayMode.RANGE
             try {
                 val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
                 
@@ -210,13 +258,11 @@ class DiscoverViewModel(
                     prefetchVisibleImages(firstBatch)
                 }
             } catch (e: Exception) {
-                // Fallback to cached data
                 try {
                     val cachedApods = repository.observeAllCachedApods().firstOrNull()
                         ?.map { it.toResponse() } ?: emptyList()
                     _rangeApod.value = cachedApods
                 } catch (cacheError: Exception) {
-                    // PRODUCTION: Only show error if we have NO local results to show
                     if (_rangeApod.value.isEmpty()) {
                         _errorMessage.value = "Unable to load photos. Please check your connection."
                     }
@@ -229,6 +275,7 @@ class DiscoverViewModel(
 
     fun updateQuery(newQuery: String) {
         _searchQuery.value = newQuery
+        _displayMode.value = if (newQuery.isNotEmpty()) DisplayMode.SEARCH else DisplayMode.RANGE
     }
 
     fun executeSearch() {
@@ -294,7 +341,7 @@ class DiscoverViewModel(
                 _searchState.value = currentState.copy(
                     isLoading = false,
                     isLoadingMore = false,
-                    error = e.message ?: "Unable to search. Please try again."
+                    error = "Unable to search. Please try again."
                 )
             }
         }
@@ -306,8 +353,8 @@ class DiscoverViewModel(
         viewModelScope.launch {
             _isRefreshing.value = true
             _errorMessage.value = null
-            
-             _rangeApod.value = emptyList()
+            _displayMode.value = DisplayMode.RANGE
+            _rangeApod.value = emptyList()
             try {
                 // Convert millis to YYYY-MM-DD
                 val startDate = formatMillisToIso(startDateMillis)
@@ -342,7 +389,7 @@ class DiscoverViewModel(
                     prefetchVisibleImages(results.take(12))
                 }
             } catch (e: Exception) {
-                _errorMessage.value = e.message ?: "Unable to load date range. Please try again."
+                _errorMessage.value = "Unable to load date range. Please check your connection."
             } finally {
                 _isRefreshing.value = false
             }
@@ -391,7 +438,7 @@ class DiscoverViewModel(
                 }
             } catch (e: Exception) {
                 _rangePaginationState.value = state.copy(isLoadingMore = false)
-                _errorMessage.value = e.message ?: "Unable to load more photos."
+                _errorMessage.value = "Unable to load more photos. Please check your connection."
             }
         }
     }

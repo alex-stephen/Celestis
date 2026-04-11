@@ -19,6 +19,18 @@ class AndroidHapticFeedback(private val context: Context) : HapticFeedback {
     }
 
     override fun performHapticFeedback(type: HapticFeedbackType) {
+        if (type == HapticFeedbackType.DICE_ROLL) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // 3 quick light pulses (dice rattling) + 1 heavy thump (landing)
+                val timings = longArrayOf(15, 70, 15, 70, 20, 60, 45)
+                val amplitudes = intArrayOf(70, 0, 100, 0, 140, 0, 220)
+                vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(longArrayOf(0, 15, 70, 15, 70, 20, 60, 45), -1)
+            }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val effect = when (type) {
                 HapticFeedbackType.LIGHT_IMPACT -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
@@ -27,6 +39,7 @@ class AndroidHapticFeedback(private val context: Context) : HapticFeedback {
                 HapticFeedbackType.SUCCESS -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK)
                 HapticFeedbackType.WARNING -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
                 HapticFeedbackType.ERROR -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                HapticFeedbackType.DICE_ROLL -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
             }
             vibrator.vibrate(effect)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -37,6 +50,7 @@ class AndroidHapticFeedback(private val context: Context) : HapticFeedback {
                 HapticFeedbackType.SUCCESS -> 30L
                 HapticFeedbackType.WARNING -> 20L
                 HapticFeedbackType.ERROR -> 50L
+                HapticFeedbackType.DICE_ROLL -> 40L
             }
             vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
         } else {

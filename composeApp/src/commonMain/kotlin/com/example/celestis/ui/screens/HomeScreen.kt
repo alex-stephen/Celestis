@@ -27,8 +27,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -57,6 +57,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,7 +94,6 @@ import kotlinx.coroutines.delay
 fun HomeScreen(
     uiState: HomeUiState,
     isShowingRandom: Boolean,
-    isFetchingRandom: Boolean,
     isImageLoading: Boolean,
     onShare: () -> Unit,
     onRefresh: () -> Unit,
@@ -116,7 +116,6 @@ fun HomeScreen(
                         state = state,
                         windowSizeClass = windowSizeClass,
                         isShowingRandom = isShowingRandom,
-                        isFetchingRandom = isFetchingRandom,
                         isImageLoading = isImageLoading,
                         onShare = onShare,
                         onRefresh = onRefresh,
@@ -145,7 +144,6 @@ fun HomeScreenSuccess(
     state: HomeUiState.Success,
     windowSizeClass: WindowSizeClass,
     isShowingRandom: Boolean,
-    isFetchingRandom: Boolean,
     isImageLoading: Boolean,
     onShare: () -> Unit,
     onRefresh: () -> Unit,
@@ -482,7 +480,6 @@ fun HomeScreenSuccess(
                         onRefresh()
                     },
                     hazeState = hazeState,
-                    isLoading = isFetchingRandom,
                     enabled = topBarAlpha > 0.1f
                 )
             }
@@ -576,31 +573,40 @@ fun AnimatedFavoriteButton(
 fun RandomApodActionButton(
     onClick: () -> Unit,
     hazeState: HazeState,
-    isLoading: Boolean,
     enabled: Boolean = true
 ) {
+    var isRainbowing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isRainbowing) {
+        if (isRainbowing) {
+            delay(1500)
+            isRainbowing = false
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "RainbowTransition")
 
-    // Animates the hue from 0 to 360 degrees infinitely
     val hue by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "HueAnimation"
     )
 
-    // Interpolate between White and the Rainbow Hue based on loading state
-    val iconColor = if (isLoading) {
+    val iconColor = if (isRainbowing) {
         Color.hsv(hue = hue, saturation = 0.6f, value = 1f)
     } else {
         Color.White
     }
     
     Surface(
-        onClick = onClick,
+        onClick = {
+            isRainbowing = true
+            onClick()
+        },
         enabled = enabled,
         shape = CircleShape,
         color = Color.Transparent,

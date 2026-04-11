@@ -3,42 +3,37 @@ import SwiftUI
 
 /**
  * Main APOD Widget for iOS using WidgetKit.
- * 
- * This widget displays the latest Astronomy Picture of the Day on the iOS home screen.
- * It integrates with the shared Kotlin Multiplatform codebase to access cached APOD data.
- * 
- * Features:
- * - Multiple widget sizes (small, medium, large)
- * - Reads cached APOD from shared SQLDelight database
- * - Displays pre-downloaded images from shared storage
- * - Timeline updates based on APOD sync schedule
- * 
- * Integration with Shared Code:
- * - Uses KoinHelper to access shared ApodRepository
- * - Reads from SQLDelight database via Kotlin code
- * - Accesses pre-downloaded images from app's file storage
+ *
+ * Supports three sizes:
+ *   • Small  – full-bleed APOD image (tap opens the detail screen)
+ *   • Medium – image with title + date overlay at the bottom
+ *   • Large  – image with title, date, and explanation preview
+ *
+ * Data flow:
+ *   The widget reads APOD data that the main app's `IosSyncManager` writes to
+ *   a shared App Group after every background sync.  If no cached data is
+ *   available, `ApodTimelineProvider` fetches it directly from the network.
+ *   See `ApodTimelineProvider.swift` for the full update-without-launch story.
  */
 struct CelestisWidget: Widget {
     let kind: String = "CelestisWidget"
-    
+
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: ApodTimelineProvider()) { entry in
             CelestisWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("APOD Widget")
-        .description("View the latest Astronomy Picture of the Day")
+        .description("Today's Astronomy Picture of the Day, always up to date.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
 
-/**
- * SwiftUI view for rendering the widget content.
- * Adapts layout based on widget family (small, medium, large).
- */
+// MARK: - Entry View (size dispatcher)
+
 struct CelestisWidgetEntryView: View {
     @Environment(\.widgetFamily) var family
     var entry: ApodWidgetEntry
-    
+
     var body: some View {
         switch family {
         case .systemSmall:
@@ -53,12 +48,11 @@ struct CelestisWidgetEntryView: View {
     }
 }
 
-/**
- * Small widget view - Image only
- */
+// MARK: - Small (image only)
+
 struct SmallWidgetView: View {
     var entry: ApodWidgetEntry
-    
+
     var body: some View {
         ZStack {
             if let imageData = entry.imageData,
@@ -67,27 +61,28 @@ struct SmallWidgetView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                // Fallback when no image is available
-                Color.black
-                VStack {
+                // Shown when the image hasn't downloaded yet.
+                Color(red: 0.1, green: 0.1, blue: 0.18)
+                VStack(spacing: 4) {
                     Text("🌌")
-                        .font(.system(size: 40))
-                    Text("No APOD")
-                        .font(.caption)
-                        .foregroundColor(.white)
+                        .font(.system(size: 36))
+                    Text("APOD")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.7))
                 }
             }
         }
-        .widgetURL(URL(string: "celestis://apod/\(entry.date)"))
+        .clipped()
+        .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
     }
 }
 
-/**
- * Medium widget view - Image with title
- */
+// MARK: - Medium (image + title + date)
+
 struct MediumWidgetView: View {
     var entry: ApodWidgetEntry
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background image
@@ -97,40 +92,44 @@ struct MediumWidgetView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                Color.black
+                Color(red: 0.1, green: 0.1, blue: 0.18)
             }
-            
-            // Title overlay
+
+            // Gradient scrim
             LinearGradient(
-                gradient: Gradient(colors: [.clear, .black.opacity(0.8)]),
+                gradient: Gradient(colors: [.clear, .black.opacity(0.85)]),
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 100)
-            
-            VStack(alignment: .leading, spacing: 4) {
+            .frame(maxWidth: .infinity)
+            .frame(height: 90)
+
+            // Text overlay
+            VStack(alignment: .leading, spacing: 3) {
                 Text(entry.title)
                     .font(.headline)
+                    .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .lineLimit(2)
-                
+
                 Text(entry.formattedDate)
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(.white.opacity(0.85))
             }
-            .padding()
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .widgetURL(URL(string: "celestis://apod/\(entry.date)"))
+        .clipped()
+        .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
     }
 }
 
-/**
- * Large widget view - Image with title and explanation preview
- */
+// MARK: - Large (image + title + date + explanation)
+
 struct LargeWidgetView: View {
     var entry: ApodWidgetEntry
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Background image
@@ -140,57 +139,81 @@ struct LargeWidgetView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fill)
             } else {
-                Color.black
+                Color(red: 0.1, green: 0.1, blue: 0.18)
             }
-            
-            // Gradient overlay
+
+            // Gradient scrim – taller to accommodate the explanation text.
             LinearGradient(
-                gradient: Gradient(colors: [.clear, .black.opacity(0.9)]),
+                gradient: Gradient(colors: [.clear, .black.opacity(0.92)]),
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 150)
-            
-            VStack(alignment: .leading, spacing: 8) {
+            .frame(maxWidth: .infinity)
+            .frame(height: 180)
+
+            // Text overlay
+            VStack(alignment: .leading, spacing: 6) {
                 Text(entry.title)
                     .font(.title3)
                     .fontWeight(.bold)
                     .foregroundColor(.white)
                     .lineLimit(2)
-                
+
                 Text(entry.formattedDate)
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.9))
-                
-                if let explanation = entry.explanation {
+                    .foregroundColor(.white.opacity(0.85))
+
+                if let explanation = entry.explanation, !explanation.isEmpty {
                     Text(explanation)
                         .font(.caption2)
-                        .foregroundColor(.white.opacity(0.8))
-                        .lineLimit(3)
-                        .padding(.top, 4)
+                        .foregroundColor(.white.opacity(0.75))
+                        .lineLimit(4)
+                        .padding(.top, 2)
                 }
             }
-            .padding()
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .widgetURL(URL(string: "celestis://apod/\(entry.date)"))
+        .clipped()
+        .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
     }
 }
 
-/**
- * Preview provider for Xcode previews
- */
-struct CelestisWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        let sampleEntry = ApodWidgetEntry(
-            date: Date(),
-            title: "Pillars of Creation",
-            apodDate: "2026-03-29",
-            imageData: nil,
-            explanation: "The famous Pillars of Creation in the Eagle Nebula captured by the James Webb Space Telescope."
-        )
-        
-        CelestisWidgetEntryView(entry: sampleEntry)
-            .previewContext(WidgetPreviewContext(family: .systemMedium))
-    }
+// MARK: - Previews
+
+#Preview("Small", as: .systemSmall) {
+    CelestisWidget()
+} timeline: {
+    ApodWidgetEntry(
+        date: .now,
+        title: "Pillars of Creation",
+        apodDate: "2026-04-11",
+        imageData: nil,
+        explanation: "The famous pillars of gas and dust in the Eagle Nebula."
+    )
+}
+
+#Preview("Medium", as: .systemMedium) {
+    CelestisWidget()
+} timeline: {
+    ApodWidgetEntry(
+        date: .now,
+        title: "Pillars of Creation",
+        apodDate: "2026-04-11",
+        imageData: nil,
+        explanation: "The famous pillars of gas and dust in the Eagle Nebula."
+    )
+}
+
+#Preview("Large", as: .systemLarge) {
+    CelestisWidget()
+} timeline: {
+    ApodWidgetEntry(
+        date: .now,
+        title: "Pillars of Creation",
+        apodDate: "2026-04-11",
+        imageData: nil,
+        explanation: "The famous pillars of gas and dust in the Eagle Nebula."
+    )
 }
