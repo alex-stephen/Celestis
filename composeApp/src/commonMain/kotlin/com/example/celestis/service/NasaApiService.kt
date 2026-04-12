@@ -5,11 +5,20 @@ import com.example.celestis.model.ApodResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import kotlinx.serialization.Serializable
+
+@Serializable
+private data class DeviceTokenRequest(val token: String, val platform: String)
 
 class NasaApi(private val client: HttpClient) {
- private val baseUrl = BuildKonfig.BASE_URL
+    private val apiRoot = "${BuildKonfig.BASE_URL}/api"
+    private val baseUrl = "$apiRoot/apod"
 
- suspend fun getApodFromServer(date: String? = null): ApodResponse {
+    suspend fun getApodFromServer(date: String? = null): ApodResponse {
     val response = client.get(baseUrl) {
      url { date?.let { parameters.append("date", it) } }
     }
@@ -83,11 +92,19 @@ class NasaApi(private val client: HttpClient) {
   }
  }
 
- suspend fun searchByTag(tag: String): List<ApodResponse> {
-  // Check if the proxy actually uses /api/apod/search
-  // or if it should be /api/search
-  return client.get("$baseUrl/search") {
-   url { parameters.append("tag", tag) }
-  }.body()
+ /**
+  * Registers or refreshes the device push token with the Celestis backend.
+  * The backend stores this token and uses it for the daily 05:15 UTC silent push.
+  * Silent failures are acceptable — the FCM token is refreshed automatically by Firebase.
+  */
+ suspend fun registerDeviceToken(token: String, platform: String) {
+     try {
+         client.post("$apiRoot/devices/token") {
+             contentType(ContentType.Application.Json)
+             setBody(DeviceTokenRequest(token, platform))
+         }
+     } catch (_: Exception) {
+         // Non-critical — token will be re-registered on the next app launch or token refresh
+     }
  }
 }

@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.buildkonfig)
+    alias(libs.plugins.googleServices)
 }
 
 sqldelight {
@@ -54,6 +55,7 @@ kotlin {
             implementation(libs.androidx.work.runtime.ktx)
             implementation(libs.androidx.glance)
             implementation(libs.androidx.glance.appwidget)
+            implementation(libs.firebase.messaging)
             implementation(libs.androidx.glance.material3)
         }
         commonMain.dependencies {

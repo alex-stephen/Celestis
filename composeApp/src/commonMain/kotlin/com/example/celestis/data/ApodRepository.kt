@@ -255,6 +255,15 @@ class ApodRepository(
     fun List<String>?.toJsonString(): String {
         return Json.encodeToString<List<String>>(this ?: emptyList())
     }
+    /**
+     * Registers or refreshes the device push token with the Celestis backend.
+     * Called by [CelestisFcmService.onNewToken] (Android) and
+     * [IosNotificationHelper.onFcmTokenReceived] (iOS).
+     */
+    suspend fun registerDeviceToken(token: String, platform: String) = withContext(Dispatchers.IO) {
+        api.registerDeviceToken(token, platform)
+    }
+
     suspend fun pruneCacheIfNeeded() = withContext(Dispatchers.IO) {
         val nonFavCount = queries.countNonFavorites().executeAsOne()
 

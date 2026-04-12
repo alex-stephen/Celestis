@@ -13,6 +13,7 @@ import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.example.celestis.data.ApodRepository
+import com.example.celestis.notifications.NotificationScheduler
 import com.example.celestis.widget.ApodWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
@@ -47,6 +48,7 @@ class ApodSyncWorker(
 
     private val repository: ApodRepository by inject()
     private val imageLoader: ImageLoader by inject()
+    private val notificationScheduler: NotificationScheduler by inject()
     
     private val imageStorageDir = File(applicationContext.filesDir, APOD_IMAGES_DIR).apply {
         if (!exists()) mkdirs()
@@ -100,6 +102,13 @@ class ApodSyncWorker(
                             Log.d(TAG, "📱 Triggering widget update...")
                             updateWidgets()
                             
+                            // Fallback: if the FCM silent push was missed (device was offline,
+                            // Doze mode, etc.) reschedule the local 10 AM notification here.
+                            notificationScheduler.scheduleApodNotification(
+                                title = latestApod.title ?: "",
+                                imageDate = latestApod.date
+                            )
+
                             Log.d(TAG, "===== SYNC SUCCESSFUL: ${latestApod.title} (${latestApod.date}) =====")
                             Result.success()
                         } else {
