@@ -10,4 +10,5 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary) apply false
     alias(libs.plugins.kotlinAndroid) apply false
     alias(libs.plugins.buildkonfig) apply false
+    alias(libs.plugins.googleServices) apply false
 }
