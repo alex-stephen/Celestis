@@ -2,10 +2,9 @@ package com.example.celestis.sync
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import androidx.glance.appwidget.updateAll
 import androidx.work.CoroutineWorker
-import androidx.work.ForegroundInfo
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkerParameters
 import coil3.ImageLoader
 import coil3.request.CachePolicy
@@ -108,6 +107,13 @@ class ApodSyncWorker(
                                 title = latestApod.title ?: "",
                                 imageDate = latestApod.date
                             )
+
+                            // Record today's sync date so the widget receiver can skip
+                            // redundant network hits on every device unlock.
+                            applicationContext.getSharedPreferences(SYNC_PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                                .edit {
+                                    putString(KEY_LAST_SYNC_DATE, latestApod.date)
+                                }
 
                             Log.d(TAG, "===== SYNC SUCCESSFUL: ${latestApod.title} (${latestApod.date}) =====")
                             Result.success()
@@ -348,6 +354,8 @@ class ApodSyncWorker(
         const val WORK_NAME = "apod_daily_sync"
         const val APOD_IMAGES_DIR = "apod_images"
         private const val RETENTION_DAYS = 7 // Keep latest 7 days of images
+        const val SYNC_PREFS_NAME = "celestis_sync"
+        const val KEY_LAST_SYNC_DATE = "last_sync_date"
         
         /**
          * Helper method to get the local image file path for a given date.
