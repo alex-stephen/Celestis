@@ -2,6 +2,7 @@ package com.example.celestis.sync
 
 import coil3.ImageLoader
 import coil3.PlatformContext
+import com.example.celestis.notifications.NotificationScheduler
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.example.celestis.BuildKonfig
@@ -44,7 +45,8 @@ import platform.Foundation.dateByAddingTimeInterval
 class IosSyncManager(
     private val repository: ApodRepository,
     private val imageLoader: ImageLoader,
-    private val context: PlatformContext
+    private val context: PlatformContext,
+    private val notificationScheduler: NotificationScheduler
 ) : BackgroundSyncManager {
 
     override fun scheduleDailySync() {
@@ -128,6 +130,13 @@ class IosSyncManager(
                     displayUrl?.let { url ->
                         downloadImageToAppGroup(url = url, date = latestApod.date)
                     }
+
+                    // Fallback: reschedule the 10 AM local notification in case the
+                    // FCM silent push was missed while the device was offline.
+                    notificationScheduler.scheduleApodNotification(
+                        title = latestApod.title ?: "",
+                        imageDate = latestApod.date
+                    )
 
                     NSLog("Celestis: Sync successful – ${latestApod.title} (${latestApod.date})")
                     true

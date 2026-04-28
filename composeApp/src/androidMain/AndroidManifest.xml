@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Required on Android 13+ (API 33) to post notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <application
         android:name=".CelestisApp"
         android:allowBackup="true"
@@ -20,15 +24,15 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            
+
             <!-- Deep Link Intent Filter -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
-                
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                
-                <data 
+
+                <data
                     android:host="getcelestis.com"
                     android:pathPrefix="/photo"
                     android:scheme="https" />
@@ -39,16 +43,9 @@
         <receiver
             android:name=".widget.ApodWidgetReceiver"
             android:exported="true">
-            <!-- Standard widget update cycle (controlled by updatePeriodMillis) -->
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
-            <!--
-                Date/time change broadcasts ensure the widget triggers a fresh
-                sync the moment the day rolls over, even if WorkManager's
-                periodic job is delayed by Doze mode or OEM battery restrictions.
-                These are protected system broadcasts — no permission needed.
-            -->
             <intent-filter>
                 <action android:name="android.intent.action.DATE_CHANGED" />
                 <action android:name="android.intent.action.TIME_SET" />
@@ -57,6 +54,20 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/apod_widget_info" />
         </receiver>
+
+        <!-- Handles FCM token refresh and incoming data-only (silent) pushes -->
+        <service
+            android:name=".notifications.CelestisFcmService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Fired by AlarmManager at 10:00 AM local time to post the notification -->
+        <receiver
+            android:name=".notifications.ApodNotificationReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
