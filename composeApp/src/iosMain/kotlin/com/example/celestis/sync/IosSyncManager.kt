@@ -23,8 +23,15 @@ import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSLog
 import platform.Foundation.NSURL
+import platform.Foundation.NSURLSession
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.dataTaskWithURL
 import platform.Foundation.dateByAddingTimeInterval
+import platform.Foundation.writeToURL
+import platform.darwin.DISPATCH_TIME_FOREVER
+import platform.darwin.dispatch_semaphore_create
+import platform.darwin.dispatch_semaphore_signal
+import platform.darwin.dispatch_semaphore_wait
 
 /**
  * iOS implementation of BackgroundSyncManager using BGTaskScheduler.
@@ -217,14 +224,29 @@ class IosSyncManager(
                     NSLog("Celestis: Invalid image URL: $url")
                     return@withContext
                 }
-                val imageData = NSData.dataWithContentsOfURL(nsUrl) ?: run {
+                // Download image synchronously using NSURLSession on the IO dispatcher.
+                val imageFileURL = imagesDirURL.URLByAppendingPathComponent("apod_$date.jpg")
+                    ?: return@withContext
+
+                val semaphore = dispatch_semaphore_create(0)
+                var downloadedData: NSData? = null
+
+                NSURLSession.sharedSession.dataTaskWithURL(nsUrl) { data, _, error ->
+                    if (error != null) {
+                        NSLog("Celestis: Image download error: ${error.localizedDescription}")
+                    } else {
+                        downloadedData = data
+                    }
+                    dispatch_semaphore_signal(semaphore)
+                }.resume()
+
+                dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER)
+
+                val imageData = downloadedData ?: run {
                     NSLog("Celestis: Image download returned nil for $url")
                     return@withContext
                 }
 
-                // Write the file, replacing any existing image for this date.
-                val imageFileURL = imagesDirURL.URLByAppendingPathComponent("apod_$date.jpg")
-                    ?: return@withContext
                 val written = imageData.writeToURL(imageFileURL, atomically = true)
 
                 if (written) {

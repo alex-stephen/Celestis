@@ -1,14 +1,13 @@
 package com.example.celestis.ui.utils
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import platform.UIKit.UIImpactFeedbackGenerator
 import platform.UIKit.UIImpactFeedbackStyle
 import platform.UIKit.UINotificationFeedbackGenerator
 import platform.UIKit.UINotificationFeedbackType
-import platform.darwin.DISPATCH_TIME_NOW
-import platform.darwin.NSEC_PER_SEC
-import platform.darwin.dispatch_after
-import platform.darwin.dispatch_get_main_queue
-import platform.darwin.dispatch_time
 
 class IOSHapticFeedback : HapticFeedback {
     override fun performHapticFeedback(type: HapticFeedbackType) {
@@ -50,14 +49,12 @@ class IOSHapticFeedback : HapticFeedback {
                 light.prepare()
                 heavy.prepare()
                 light.impactOccurred()
-                val queue = dispatch_get_main_queue()
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (0.085 * NSEC_PER_SEC).toLong()), queue) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(85L)
                     light.impactOccurred()
-                }
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (0.17 * NSEC_PER_SEC).toLong()), queue) {
+                    delay(85L) // 170ms total from start
                     light.impactOccurred()
-                }
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (0.26 * NSEC_PER_SEC).toLong()), queue) {
+                    delay(90L) // 260ms total from start
                     heavy.impactOccurred()
                 }
             }

@@ -5,6 +5,15 @@ import WidgetKit
 import FirebaseCore
 import FirebaseMessaging
 
+// MARK: - Firebase availability helper
+
+/// Returns true only when GoogleService-Info.plist is bundled with the app.
+/// Firebase will fatal-error if configure() is called without the plist, so we
+/// guard every Firebase call behind this check.
+private var isFirebaseAvailable: Bool {
+    Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil
+}
+
 // MARK: - Background task handler
 
 private func handleAppRefresh(task: BGAppRefreshTask) {
@@ -39,7 +48,10 @@ class CelestisAppDelegate: NSObject, UIApplicationDelegate,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
-        Messaging.messaging().delegate = self
+
+        if isFirebaseAvailable {
+            Messaging.messaging().delegate = self
+        }
 
         // Request notification permission on first launch.
         // For a content-delivery app like Celestis this is appropriate upfront;
@@ -60,12 +72,13 @@ class CelestisAppDelegate: NSObject, UIApplicationDelegate,
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
+        guard isFirebaseAvailable else { return }
         Messaging.messaging().apnsToken = deviceToken
     }
 
     // Firebase has a fresh FCM token — store it and register with the Celestis backend.
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard let token = fcmToken else { return }
+        guard isFirebaseAvailable, let token = fcmToken else { return }
         UserDefaults.standard.set(token, forKey: "fcm_device_token")
         // Bridges into Kotlin: calls ApodRepository.registerDeviceToken(token, "ios")
         IosNotificationHelperKt.onFcmTokenReceived(token: token)
@@ -110,7 +123,17 @@ struct iOSApp: App {
 
     init() {
         // Firebase must be configured before Koin boots (FCM needs it on first token fetch).
-        FirebaseApp.configure()
+        // Guard against missing GoogleService-Info.plist (e.g. during development before
+        // the plist has been added). Download it from https://console.firebase.google.com/
+        // and add it to the iosApp/iosApp/ folder to enable push notifications.
+        if isFirebaseAvailable {
+            FirebaseApp.configure()
+        } else {
+            print("[Celestis] WARNING: GoogleService-Info.plist not found — " +
+                  "Firebase/FCM push notifications are disabled. " +
+                  "Download the plist from https://console.firebase.google.com/ " +
+                  "and add it to iosApp/iosApp/ to enable them.")
+        }
 
         // Register the background-task handler BEFORE the app finishes launching.
         BGTaskScheduler.shared.register(

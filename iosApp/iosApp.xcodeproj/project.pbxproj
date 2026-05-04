@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		5495EDE92F85772500D3C3C7 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 5495EDE82F85772500D3C3C7 /* libsqlite3.tbd */; };
+		FBAA000000000000000000B1 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA000000000000000000A1 /* FirebaseCore */; };
+		FBAA000000000000000000B2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA000000000000000000A2 /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -47,6 +49,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				5495EDE92F85772500D3C3C7 /* libsqlite3.tbd in Frameworks */,
+				FBAA000000000000000000B1 /* FirebaseCore in Frameworks */,
+				FBAA000000000000000000B2 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -100,6 +104,8 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				FBAA000000000000000000A1 /* FirebaseCore */,
+				FBAA000000000000000000A2 /* FirebaseMessaging */,
 			);
 			productName = iosApp;
 			productReference = 5DCFD60858585D417DCC9A4A /* Celestis.app */;
@@ -129,6 +135,9 @@
 			);
 			mainGroup = DE1D313CAB4D2608EC9CA025;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 969D21BCCCDC630D04DAD8B4 /* Products */;
 			projectDirPath = "";
@@ -387,6 +396,31 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = "11.0.0";
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		FBAA000000000000000000A1 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		FBAA000000000000000000A2 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 	};
 	rootObject = C617478DEC97B7509B9E7E30 /* Project object */;
 }
