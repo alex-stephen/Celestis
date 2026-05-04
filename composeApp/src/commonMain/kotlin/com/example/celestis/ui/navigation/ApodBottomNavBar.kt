@@ -1,5 +1,6 @@
 package com.example.celestis.ui.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
@@ -23,16 +24,36 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
 /**
- * Pager-based Bottom Navigation Bar for use with HorizontalPager
+ * Pager-based Bottom Navigation Bar for use with HorizontalPager.
+ *
+ * @param isVideoSource When true the underlying hazeSource is an opaque native video layer
+ *   that cannot be sampled by the haze effect. A solid dark background is used as fallback
+ *   so the bar remains legible.
  */
 @Composable
 fun ApodBottomNavBar(
     selectedIndex: Int,
     onTabSelected: (Int) -> Unit,
     hazeState: HazeState,
+    isVideoSource: Boolean = false,
 ) {
-    NavigationBar(
-        modifier = Modifier
+    val barModifier = if (isVideoSource) {
+        Modifier
+            .background(Color(0xFF111111).copy(alpha = 0.92f))
+            .drawBehind {
+                val strokeWidthPx = 1.dp.toPx()
+                val verticalOffset = strokeWidthPx / 2
+                drawLine(
+                    color = Color.White.copy(alpha = 0.15f),
+                    start = Offset(0f, verticalOffset),
+                    end = Offset(size.width, verticalOffset),
+                    strokeWidth = strokeWidthPx
+                )
+            }
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .height(70.dp)
+    } else {
+        Modifier
             .hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
@@ -45,7 +66,6 @@ fun ApodBottomNavBar(
             .drawBehind {
                 val strokeWidthPx = 1.dp.toPx()
                 val verticalOffset = strokeWidthPx / 2
-
                 drawLine(
                     color = Color.White.copy(alpha = 0.15f),
                     start = Offset(0f, verticalOffset),
@@ -54,7 +74,11 @@ fun ApodBottomNavBar(
                 )
             }
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .height(70.dp),
+            .height(70.dp)
+    }
+
+    NavigationBar(
+        modifier = barModifier,
         containerColor = Color.Transparent,
         tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0) // Disable automatic window insets

@@ -59,7 +59,6 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -252,6 +251,14 @@ fun SharedTransitionScope.DiscoverScreenGrid(
             }
             DisplayMode.RANGE -> {
                 // MODE A: Date Range Feed with Pagination
+                // Compute the pagination trigger index outside the grid to avoid
+                // recomposing every item when the list size changes.
+                val rangeLoadMoreThreshold = remember(state.rangeApod.size) {
+                    (state.rangeApod.size - 15).coerceAtLeast(0)
+                }
+                // Track the last index that triggered a load to prevent duplicate calls.
+                var rangeLastTriggeredIndex by remember { mutableStateOf(-1) }
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(gridCols),
                     contentPadding = contentPadding,
@@ -263,15 +270,13 @@ fun SharedTransitionScope.DiscoverScreenGrid(
                     ) { index, apod ->
                         ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
 
-                        // Trigger load more when near end (15 items before the last)
-                        val shouldLoadMore by remember(index, state.rangeApod.size) {
-                            derivedStateOf {
-                                index >= state.rangeApod.size - 15 && state.rangeApod.isNotEmpty()
-                            }
-                        }
-
-                        if (shouldLoadMore) {
-                            LaunchedEffect(Unit) {
+                        // Trigger load more when near end — only once per threshold crossing.
+                        if (index >= rangeLoadMoreThreshold &&
+                            state.rangeApod.isNotEmpty() &&
+                            index != rangeLastTriggeredIndex
+                        ) {
+                            rangeLastTriggeredIndex = index
+                            LaunchedEffect(rangeLoadMoreThreshold) {
                                 onLoadMoreRangeResults()
                             }
                         }
@@ -284,6 +289,12 @@ fun SharedTransitionScope.DiscoverScreenGrid(
                 if (searchState.isLoading && searchState.items.isEmpty()) {
                     ShimmerApodGrid(columns = gridCols, itemCount = 30)
                 } else {
+                    // Compute the pagination trigger index outside the grid.
+                    val searchLoadMoreThreshold = remember(searchState.items.size) {
+                        (searchState.items.size - 15).coerceAtLeast(0)
+                    }
+                    var searchLastTriggeredIndex by remember { mutableStateOf(-1) }
+
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(gridCols),
                         contentPadding = contentPadding,
@@ -295,17 +306,14 @@ fun SharedTransitionScope.DiscoverScreenGrid(
                         ) { index, apod ->
                             ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
 
-                            // Trigger load more when near end
-                            val shouldLoadMore by remember(index, searchState.items.size, searchState.hasMore) {
-                                derivedStateOf {
-                                    index >= searchState.items.size - 15 &&
-                                            searchState.hasMore &&
-                                            !searchState.isLoadingMore
-                                }
-                            }
-
-                            if (shouldLoadMore) {
-                                LaunchedEffect(Unit) {
+                            // Trigger load more when near end — only once per threshold crossing.
+                            if (index >= searchLoadMoreThreshold &&
+                                searchState.hasMore &&
+                                !searchState.isLoadingMore &&
+                                index != searchLastTriggeredIndex
+                            ) {
+                                searchLastTriggeredIndex = index
+                                LaunchedEffect(searchLoadMoreThreshold) {
                                     onLoadMoreSearchResults()
                                 }
                             }

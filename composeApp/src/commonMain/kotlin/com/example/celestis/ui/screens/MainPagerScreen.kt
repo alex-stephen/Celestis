@@ -26,6 +26,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.celestis.model.ApodResponse
+import com.example.celestis.model.isVideo
 import com.example.celestis.ui.navigation.ApodBottomNavBar
 import com.example.celestis.ui.navigation.BottomBarState
 import com.example.celestis.ui.navigation.NavItem
@@ -34,6 +35,7 @@ import com.example.celestis.ui.viewModels.DiscoverUiState
 import com.example.celestis.ui.viewModels.DiscoverViewModel
 import com.example.celestis.ui.viewModels.FavoriteUiState
 import com.example.celestis.ui.viewModels.FavoriteViewModel
+import com.example.celestis.ui.viewModels.HomeUiState
 import com.example.celestis.ui.viewModels.HomeViewModel
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
@@ -94,6 +96,22 @@ fun MainPagerScreen(
 
     val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
 
+    // Determine whether the currently visible content is a native video layer.
+    // When the Home tab is active and the displayed APOD is a video, the haze effect
+    // cannot sample pixels from the opaque native player surface. We switch the bars
+    // to a solid dark fallback in that case.
+    val isHomeTabActive = pagerState.currentPage == NavItem.entries.indexOf(NavItem.Home)
+    val isCurrentApodVideo = remember(homeUiState, isShowingRandom) {
+        when (val s = homeUiState) {
+            is HomeUiState.Success -> {
+                val apod = if (isShowingRandom) s.randomApod ?: s.todayApod else s.todayApod
+                apod.isVideo()
+            }
+            else -> false
+        }
+    }
+    val isVideoSource = isHomeTabActive && isCurrentApodVideo
+
     // Use a simple Box layout for full control over sizing and positioning
     Box(modifier = Modifier.fillMaxSize()) {
         // Content area with HorizontalPager
@@ -121,7 +139,8 @@ fun MainPagerScreen(
                     onImageLoaded = homeViewModel::onImageLoaded,
                     windowSizeClass = windowSizeClass,
                     hazeState = hazeState,
-                    bottomPadding = if (isCompact) customBottomBarHeight else 0.dp
+                    bottomPadding = if (isCompact) customBottomBarHeight else 0.dp,
+                    isVideoSource = isCurrentApodVideo
                 )
 
                 NavItem.Discover -> DiscoverScreenWrapper(
@@ -165,13 +184,16 @@ fun MainPagerScreen(
                     enter = slideInVertically { it },
                     exit = slideOutVertically { it }
                 ) {
-                    // Let the bottom bar control its own height
+                    // Let the bottom bar control its own height.
+                    // Pass isVideoSource so the bar uses a solid fallback when the
+                    // native video player is behind it (haze cannot sample it).
                     ApodBottomNavBar(
                         selectedIndex = pagerState.currentPage,
                         onTabSelected = { index ->
                             scope.launch { pagerState.animateScrollToPage(index) }
                         },
-                        hazeState = hazeState
+                        hazeState = hazeState,
+                        isVideoSource = isVideoSource
                     )
                 }
             }

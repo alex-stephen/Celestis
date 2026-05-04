@@ -41,9 +41,10 @@ import kotlin.coroutines.resume
  * iOS implementation of CelestisVideoPlayer.
  *
  * - YouTube videos: Embedded via WKWebView iframe player
- * - Direct media (MP4/HLS): AVURLAsset with async metadata pre-loading, then
- *   AVPlayerItem + AVPlayer on main thread, embedded via UIKitViewController.
- *
+ * - Direct media (MP4/HLS): AVURLAsset with async metadata pre-loading off the main thread,
+ *   then AVPlayerItem + AVPlayer created back on the main thread to avoid the
+ *   "Main thread blocked by synchronous property query on not-yet-loaded property
+ *   (PreferredTransform)" warning.
  */
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -125,6 +126,13 @@ actual fun CelestisVideoPlayer(
 
                 try {
                     val asset = AVURLAsset.URLAssetWithURL(nsUrl, options = null)
+
+                    // Load all required keys — including preferredTransform — asynchronously
+                    // on a background thread. This prevents the main thread from blocking on
+                    // a synchronous property query for not-yet-loaded AVAsset properties.
+                    // "preferredTransform" is explicitly pre-loaded here so that when
+                    // AVPlayerViewController later reads it, it is already cached and the
+                    // access is non-blocking.
                     val keysToLoad = listOf("playable", "tracks", "duration", "preferredTransform")
 
                     withContext(Dispatchers.Default) {
@@ -135,8 +143,12 @@ actual fun CelestisVideoPlayer(
                         }
                     }
 
-                    val item = AVPlayerItem(asset = asset)
-                    player = AVPlayer(playerItem = item)
+                    // AVPlayerItem and AVPlayer must be created on the main thread after
+                    // all keys have been loaded asynchronously above.
+                    withContext(Dispatchers.Main) {
+                        val item = AVPlayerItem(asset = asset)
+                        player = AVPlayer(playerItem = item)
+                    }
                 } catch (e: Exception) {
                     loadError = e.message ?: "Failed to load video"
                 }

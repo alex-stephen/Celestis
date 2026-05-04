@@ -26,5 +26,6 @@ build/
 *.p12
 *.key
 google-services.json
+GoogleService-Info.plist
 AGENTS.md
 .env

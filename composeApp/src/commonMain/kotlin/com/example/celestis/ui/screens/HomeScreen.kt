@@ -57,7 +57,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -104,7 +103,8 @@ fun HomeScreen(
     onImageLoaded: () -> Unit = {},
     windowSizeClass: WindowSizeClass,
     hazeState: HazeState,
-    bottomPadding: Dp = 0.dp
+    bottomPadding: Dp = 0.dp,
+    isVideoSource: Boolean = false
 ) {
     // No Scaffold TopBar slot = No unwanted gaps
     Scaffold(
@@ -125,7 +125,8 @@ fun HomeScreen(
                         onShowHdImage = onShowHdImage,
                         onHideHdImage = onHideHdImage,
                         onImageLoaded = onImageLoaded,
-                        bottomPadding = bottomPadding
+                        bottomPadding = bottomPadding,
+                        isVideoSource = isVideoSource
                     )
                 }
 
@@ -153,7 +154,8 @@ fun HomeScreenSuccess(
     onShowHdImage: (String?, String?) -> Unit,
     onHideHdImage: () -> Unit,
     onImageLoaded: () -> Unit,
-    bottomPadding: Dp
+    bottomPadding: Dp,
+    isVideoSource: Boolean = false
 ) {
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
@@ -443,7 +445,8 @@ fun HomeScreenSuccess(
                 actions = {
                     // Share button moved to sheet header
                 },
-                windowSizeClass = windowSizeClass
+                windowSizeClass = windowSizeClass,
+                isVideoSource = isVideoSource
             )
         }
         
