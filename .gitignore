@@ -28,4 +28,4 @@ build/
 google-services.json
 GoogleService-Info.plist
 AGENTS.md
-.env
+.envGoogleService-Info.plist
