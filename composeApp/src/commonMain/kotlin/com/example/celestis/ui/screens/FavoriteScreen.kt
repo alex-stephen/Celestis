@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -34,6 +35,8 @@ import androidx.compose.ui.unit.sp
 import com.example.celestis.model.ApodResponse
 import com.example.celestis.ui.navigation.ApodTopAppBar
 import com.example.celestis.ui.navigation.TopBarState
+import com.example.celestis.ui.navigation.apodNavigationOverlayWidth
+import com.example.celestis.ui.navigation.apodTopAppBarContentHeight
 import com.example.celestis.ui.viewModels.FavoriteUiState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -48,6 +51,7 @@ fun SharedTransitionScope.FavoriteScreen(
     animatedVisibilityScope: AnimatedVisibilityScope,
     topBarState: TopBarState
 ) {
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
 
     Box(
         modifier = Modifier
@@ -85,6 +89,7 @@ fun SharedTransitionScope.FavoriteScreen(
             exit = androidx.compose.animation.slideOutVertically { -it }
         ) {
             ApodTopAppBar(
+                modifier = Modifier.padding(start = navigationOverlayWidth),
                 titleContent = {
                     Box(
                         modifier = Modifier.fillMaxHeight(),
@@ -119,9 +124,9 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
     animatedVisibilityScope: AnimatedVisibilityScope,
     topBarState: TopBarState
 ) {
-    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val gridCols = when (windowSizeClass.widthSizeClass) {
         WindowWidthSizeClass.Compact -> 2
@@ -136,6 +141,7 @@ fun SharedTransitionScope.FavoriteScreenSuccess(
             columns = GridCells.Fixed(gridCols),
             modifier = Modifier
                 .fillMaxSize()
+                .padding(start = navigationOverlayWidth)
                 .nestedScroll(topBarState.nestedScrollConnection),
             contentPadding = PaddingValues(top = statusBarTop + appBarContentHeight, bottom = 70.dp + navigationBarBottom + 10.dp)
         ) {

@@ -19,11 +19,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.celestis.getPlatform
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
+
+val ApodTopAppBarHorizontalPadding: Dp = 16.dp
+
+fun apodTopAppBarContentHeight(windowSizeClass: WindowSizeClass?): Dp {
+    val widthSizeClass = windowSizeClass?.widthSizeClass
+    val isIos = getPlatform().name.equals("iOS", ignoreCase = true)
+
+    return when (widthSizeClass) {
+        WindowWidthSizeClass.Expanded -> 52.dp
+        WindowWidthSizeClass.Medium -> 56.dp
+        WindowWidthSizeClass.Compact -> if (isIos) 76.dp else 65.dp
+        else -> if (isIos) 76.dp else 65.dp
+    }
+}
 
 /**
  * @param isVideoSource When true the underlying hazeSource is an opaque native video layer
@@ -40,8 +56,7 @@ fun ApodTopAppBar(
     hazeState: HazeState,
     isVideoSource: Boolean = false
 ) {
-    val isLandscape = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
-    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
 
     // When the content behind the bar is a native video layer (UIKitViewController /
     // ExoPlayer SurfaceView) the Compose haze effect cannot sample pixels from it.
@@ -92,7 +107,7 @@ fun ApodTopAppBar(
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
                 .height(appBarContentHeight)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = ApodTopAppBarHorizontalPadding),
             contentAlignment = Alignment.TopCenter,
         ) {
             // Left Slot (Menu/Back)

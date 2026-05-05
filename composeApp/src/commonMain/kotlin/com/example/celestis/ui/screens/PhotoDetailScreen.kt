@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,7 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.Hyphens
@@ -66,6 +65,8 @@ import com.example.celestis.ui.components.HdImagePopup
 import com.example.celestis.ui.components.LoadingOverlay
 import com.example.celestis.ui.navigation.ApodTopAppBar
 import com.example.celestis.ui.navigation.TopBarState
+import com.example.celestis.ui.navigation.apodNavigationOverlayWidth
+import com.example.celestis.ui.navigation.apodTopAppBarContentHeight
 import com.example.celestis.ui.utils.extractDominantColor
 import com.example.celestis.ui.viewModels.PhotoDetailUiState
 import dev.chrisbanes.haze.HazeState
@@ -117,7 +118,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
                 }
 
                 is PhotoDetailUiState.Success -> {
-                    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+                    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
                     val shouldHideTopBar = state.selectedHdUrl != null
                     
                     Box(
@@ -151,6 +152,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
                             exit = slideOutVertically { -it }
                         ) {
                             ApodTopAppBar(
+                                modifier = Modifier.padding(start = navigationOverlayWidth),
                                 titleContent = {
                                     Text(
                                         text = "DESCRIPTION",
@@ -215,9 +217,9 @@ fun SharedTransitionScope.PhotoDetailContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     topBarState: TopBarState
 ) {
-    val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
 
     val apod = state.apod
     val scrollState = rememberScrollState()
@@ -231,21 +233,19 @@ fun SharedTransitionScope.PhotoDetailContent(
         label = "dominantColorAnimation"
     )
 
-    val density = LocalDensity.current
-    // Calculate pixel offsets for the "Glow Zone"
-    val imageBottomPx = with(density) { 400.dp.toPx() }
-    val glowDepthPx = with(density) { 600.dp.toPx() } // How far the light travels
-
     val haptic = LocalHapticFeedback.current
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
+        val mediaHeight = (maxHeight * 0.48f).coerceIn(320.dp, 560.dp)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(start = navigationOverlayWidth)
                 .nestedScroll(topBarState.nestedScrollConnection) // Top bar visibility logic
                 .verticalScroll(scrollState)
         ) {
@@ -257,7 +257,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(400.dp)
+                        .height(mediaHeight)
                 ) {
                     CelestisVideoPlayer(
                         videoUrl = apod.url ?: "",
@@ -273,7 +273,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(400.dp) // Approximately 50% of typical viewport
+                        .height(mediaHeight)
                         .clickable(onClick = onImageClick)
                 ) {
                     SubcomposeAsyncImage(
@@ -334,15 +334,16 @@ fun SharedTransitionScope.PhotoDetailContent(
                         .fillMaxSize()
                         .drawBehind {
                             drawRect(color = Color.Black)
+                            val glowDepthPx = (size.height * 0.56f).coerceIn(460.dp.toPx(), 920.dp.toPx())
 
-                            // The "Eased" Gradient - avoid the "Blob" by adding mid-points
+                            // Start the glow directly below the media and fade it through the content area.
                             val easedGradient = Brush.verticalGradient(
-                                0.0f to animatedDominantColor.copy(alpha = 0.5f), // Start at bottom of image
-                                0.3f to animatedDominantColor.copy(alpha = 0.2f),
-                                0.6f to animatedDominantColor.copy(alpha = 0.05f),
+                                0.0f to animatedDominantColor.copy(alpha = 0.56f),
+                                0.42f to animatedDominantColor.copy(alpha = 0.34f),
+                                0.72f to animatedDominantColor.copy(alpha = 0.12f),
                                 1.0f to Color.Transparent,
-                                startY = imageBottomPx,
-                                endY = imageBottomPx + glowDepthPx
+                                startY = 0f,
+                                endY = glowDepthPx
                             )
 
                             drawRect(brush = easedGradient)

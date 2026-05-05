@@ -49,6 +49,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
@@ -80,7 +81,10 @@ import coil3.compose.AsyncImage
 import com.example.celestis.model.isVideo
 import com.example.celestis.ui.components.CelestisVideoPlayer
 import com.example.celestis.ui.components.HdImagePopup
+import com.example.celestis.ui.navigation.ApodTopAppBarHorizontalPadding
 import com.example.celestis.ui.navigation.ApodTopAppBar
+import com.example.celestis.ui.navigation.apodNavigationOverlayWidth
+import com.example.celestis.ui.navigation.apodTopAppBarContentHeight
 import com.example.celestis.ui.viewModels.HomeUiState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
@@ -159,8 +163,16 @@ fun HomeScreenSuccess(
 ) {
     val displayApod = if (isShowingRandom) state.randomApod ?: state.todayApod else state.todayApod
     val isLandscape = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+    val isPhoneLandscape = isLandscape &&
+            windowSizeClass.heightSizeClass == WindowHeightSizeClass.Compact
+    val isVerticalPhone = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact &&
+            windowSizeClass.heightSizeClass != WindowHeightSizeClass.Compact
+    val shouldShowGlassSheet = !isPhoneLandscape
+    val shouldShowInlineArrow = shouldShowGlassSheet && !isVerticalPhone
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val appBarContentHeight = if (isLandscape) 58.dp else 81.dp
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
+    val homeControlsTopPadding = appBarContentHeight + ApodTopAppBarHorizontalPadding
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
 
     var currentApod by remember { mutableStateOf(displayApod) }
     var isVideoPlaying by remember(currentApod.date) { mutableStateOf(false) }
@@ -177,41 +189,53 @@ fun HomeScreenSuccess(
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenHeight = maxHeight
-        val peekHeight = if (isLandscape) 50.dp else bottomPadding + 100.dp
+        val isTabletLayout = windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact
+        val isFoldableLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded &&
+                maxWidth >= maxHeight &&
+                maxHeight < 700.dp
+        val isTabletLandscape = isTabletLayout && !isFoldableLandscape && maxWidth >= maxHeight &&
+                windowSizeClass.heightSizeClass != WindowHeightSizeClass.Compact
+        val isFoldablePortrait = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium &&
+                maxHeight > maxWidth
+        val isTabletPortrait = isTabletLayout && !isFoldablePortrait && maxHeight > maxWidth
+        val peekHeight = when {
+            isPhoneLandscape -> (screenHeight * 0.12f).coerceIn(72.dp, 128.dp)
+            isFoldableLandscape -> (screenHeight * 0.28f).coerceIn(172.dp, 240.dp)
+            isTabletLandscape -> (screenHeight * 0.24f).coerceIn(150.dp, 240.dp)
+            isFoldablePortrait -> (screenHeight * 0.16f).coerceIn(144.dp, 190.dp)
+            isTabletPortrait -> (screenHeight * 0.09f).coerceIn(96.dp, 136.dp)
+            isLandscape -> (screenHeight * 0.12f).coerceIn(72.dp, 128.dp)
+            else -> (screenHeight * 0.16f).coerceIn(bottomPadding + 112.dp, bottomPadding + 172.dp)
+        }
+        val imageFadeHeight = (screenHeight * 0.18f).coerceIn(120.dp, 240.dp)
 
         val density = LocalDensity.current
         val screenHeightPx = with(density) { screenHeight.toPx() }
 
         Box(modifier = Modifier.fillMaxSize()) {
 
-        val baseImageModifier = Modifier
-            .fillMaxWidth()
-            .height(screenHeight)
-            .hazeSource(state = hazeState)
-            .graphicsLayer {
-                translationY = -scrollState.value * 0.4f
-                val scrollFraction = (scrollState.value.toFloat() / screenHeightPx).coerceIn(0f, 1f)
-                alpha = 1f - (scrollFraction * 0.6f)
-            }
-            .drawWithContent {
-                drawContent()
-                val gradientHeight = 60.dp.toPx()
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black),
-                        startY = size.height - gradientHeight,
-                        endY = size.height
+            val baseImageModifier = Modifier
+                .fillMaxWidth()
+                .height(screenHeight)
+                .hazeSource(state = hazeState)
+                .graphicsLayer {
+                    translationY = -scrollState.value * 0.4f
+                    val scrollFraction = (scrollState.value.toFloat() / screenHeightPx).coerceIn(0f, 1f)
+                    alpha = 1f - (scrollFraction * 0.6f)
+                }
+                .drawWithContent {
+                    drawContent()
+                    val gradientHeight = imageFadeHeight.toPx()
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black),
+                            startY = size.height - gradientHeight,
+                            endY = size.height
+                        )
                     )
-                )
-            }
+                }
 
-        val finalImageModifier = if (!displayApod.isVideo()) {
-            baseImageModifier.clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
-        } else {
-            baseImageModifier
-        }
-
-        Box(modifier = finalImageModifier) {
+        Box(modifier = baseImageModifier) {
             if (isLandscape && !currentApod.isVideo() && !currentApod.url.isNullOrEmpty()) {
                 AsyncImage(
                     model = currentApod.url,
@@ -277,6 +301,7 @@ fun HomeScreenSuccess(
                             onError = { onImageLoaded() },
                             modifier = Modifier
                                 .fillMaxSize()
+                                .padding(start = navigationOverlayWidth)
                                 .graphicsLayer {
                                     scaleX = 1.25f
                                     scaleY = 1.25f
@@ -310,6 +335,7 @@ fun HomeScreenSuccess(
                     modifier = Modifier
                         .height(screenHeight - peekHeight)
                         .fillMaxWidth()
+                        .padding(start = navigationOverlayWidth)
                         .clickable { onShowHdImage(displayApod.urlHD, displayApod.url) }
                 )
             } else {
@@ -322,102 +348,118 @@ fun HomeScreenSuccess(
                 )
             }
 
-            Box(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-
-                // GLASS SHEET CONTENT
-                Column(
+            if (shouldShowGlassSheet) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 28.dp) // Leave 28dp of space for the FAB to overlap the top border
-                        .defaultMinSize(minHeight = screenHeight * 0.7f)
-                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                        .hazeEffect(
-                            state = hazeState,
-                            style = HazeStyle(
-                                backgroundColor = Color.White.copy(alpha = 0.15f),
-                                blurRadius = 40.dp,
-                                noiseFactor = 0.05f,
-                                tint = HazeTint.Unspecified
-                            )
-                        )
-                        .background(Color.Black.copy(alpha = 0.3f))
-                        .padding(horizontal = 24.dp, vertical = 18.dp)
-                        .padding(bottom = bottomPadding + 40.dp)
+                        .padding(start = navigationOverlayWidth)
                 ) {
-                    // Header Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier.clip(RoundedCornerShape(50)),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
-                        ) {
-                            Text(
-                                text = displayApod.date,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+
+                    // GLASS SHEET CONTENT
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 28.dp) // Leave 28dp of space for the FAB to overlap the top border
+                            .defaultMinSize(minHeight = screenHeight * 0.7f)
+                            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                            .hazeEffect(
+                                state = hazeState,
+                                style = HazeStyle(
+                                    backgroundColor = Color.White.copy(alpha = 0.15f),
+                                    blurRadius = 40.dp,
+                                    noiseFactor = 0.05f,
+                                    tint = HazeTint.Unspecified
+                                )
                             )
-                        }
-                        // Share and Favorite buttons side by side
+                            .background(Color.Black.copy(alpha = 0.3f))
+                            .padding(horizontal = 24.dp, vertical = 18.dp)
+                            .padding(bottom = bottomPadding + 40.dp)
+                    ) {
+                        // Header Row
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = onShare) {
-                                Icon(
-                                    Icons.Default.Share, 
-                                    "Share", 
-                                    tint = Color.White.copy(alpha = 0.8f),
-                                    modifier = Modifier.size(24.dp)
+                            Surface(
+                                modifier = Modifier.clip(RoundedCornerShape(50)),
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f)
+                            ) {
+                                Text(
+                                    text = displayApod.date,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                                 )
                             }
-                            
-                            AnimatedFavoriteButton(
-                                isFavorite = displayApod.isFavorite,
-                                onFavoriteClick = {
-                                    // Using the correct Compose HapticFeedbackType
-                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                                    onFavoriteToggle(displayApod.date, !displayApod.isFavorite)
+
+                            if (shouldShowInlineArrow) {
+                                Box(
+                                    modifier = Modifier.weight(1f),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    SwipeUpIndicatorIcon()
                                 }
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+
+                            // Share and Favorite buttons side by side
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = onShare) {
+                                    Icon(
+                                        Icons.Default.Share,
+                                        "Share",
+                                        tint = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                AnimatedFavoriteButton(
+                                    isFavorite = displayApod.isFavorite,
+                                    onFavoriteClick = {
+                                        // Using the correct Compose HapticFeedbackType
+                                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                                        onFavoriteToggle(displayApod.date, !displayApod.isFavorite)
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = displayApod.title ?: "Unknown",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Color.White,
+                            lineHeight = 36.sp
+                        )
+
+                        Text(
+                            text = displayApod.explanation ?: "",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Justify,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 26.sp,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        displayApod.copyright?.let {
+                            Text(
+                                text = "© $it",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(0.6f),
+                                modifier = Modifier.padding(top = 8.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = displayApod.title ?: "Unknown",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White,
-                        lineHeight = 36.sp
-                    )
-
-                    Text(
-                        text = displayApod.explanation ?: "",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Justify,
-                        color = Color.White.copy(alpha = 0.85f),
-                        lineHeight = 26.sp,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    displayApod.copyright?.let {
-                        Text(
-                            text = "© $it",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White.copy(0.6f),
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    }
                 }
-
             }
         }
 
@@ -430,6 +472,7 @@ fun HomeScreenSuccess(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(start = navigationOverlayWidth)
                 .graphicsLayer { alpha = topBarAlpha }
         ) {
             ApodTopAppBar(
@@ -453,8 +496,9 @@ fun HomeScreenSuccess(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusBarTop + appBarContentHeight)
-                .padding(horizontal = 16.dp)
+                .padding(start = navigationOverlayWidth)
+                .padding(top = statusBarTop + homeControlsTopPadding)
+                .padding(horizontal = ApodTopAppBarHorizontalPadding)
                 .graphicsLayer { alpha = topBarAlpha }
         ) {
             Row(
@@ -490,41 +534,55 @@ fun HomeScreenSuccess(
 
         val isAtTop by remember { derivedStateOf { scrollState.value < 50 } }
         AnimatedVisibility(
-            visible = isAtTop,
+            visible = isAtTop && !shouldShowInlineArrow,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(start = navigationOverlayWidth)
                 .padding(bottom = bottomPadding + 18.dp)
         ) {
-            val infiniteTransition = rememberInfiniteTransition(label = "bounce")
-            val offsetY by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 15f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "bounce_y"
-            )
-
-            Icon(
-                imageVector = Icons.Rounded.KeyboardArrowUp,
-                contentDescription = "Scroll up for more",
-                tint = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier
-                    .size(36.dp)
-                    .graphicsLayer { translationY = offsetY }
-            )
-        }
-
-                    // HD Image Popup Layer
-                    if (state.selectedHdUrl != null) {
-                        HdImagePopup(imageUrl = state.selectedHdUrl, onDismiss = onHideHdImage)
-                    }
-                }
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                SwipeUpIndicatorIcon()
             }
         }
+
+            // HD Image Popup Layer
+            if (state.selectedHdUrl != null) {
+                HdImagePopup(imageUrl = state.selectedHdUrl, onDismiss = onHideHdImage)
+            }
+        }
+    }
+}
+
+@Composable
+fun SwipeUpIndicatorIcon(
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "bounce")
+    val offsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bounce_y"
+    )
+
+    Icon(
+        imageVector = Icons.Rounded.KeyboardArrowUp,
+        contentDescription = "Scroll up for more",
+        tint = Color.White.copy(alpha = 0.7f),
+        modifier = modifier
+            .size(36.dp)
+            .graphicsLayer { translationY = offsetY }
+    )
+}
 
 @Composable
 fun AnimatedFavoriteButton(
