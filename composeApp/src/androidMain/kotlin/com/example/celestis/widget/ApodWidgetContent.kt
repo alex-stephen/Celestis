@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
 import androidx.glance.GlanceModifier
-import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
@@ -33,6 +32,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -40,6 +40,8 @@ import androidx.glance.unit.ColorProvider
 import com.example.celestis.MainActivity
 import com.example.celestis.ui.utils.LinkGenerator
 import java.io.File
+
+private val Exo2WidgetFontFamily = FontFamily("Exo 2")
 
 /**
  * Main composable content for the APOD widget.
@@ -83,6 +85,11 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
     val isVideo = state.mediaType.equals("video", ignoreCase = true)
     val bitmap = state.imagePath?.let { loadBitmapFromFile(context, it) }
+    val backgroundModifier = if (bitmap != null) {
+        GlanceModifier.background(ImageProvider(bitmap), ContentScale.Crop)
+    } else {
+        GlanceModifier.background(Color(0xFF1A1A2E))
+    }
     
     // Create deep link action
     val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
@@ -99,17 +106,10 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
+            .then(backgroundModifier)
             .clickable(onClick = clickAction)
     ) {
         if (bitmap != null) {
-            // Load image/thumbnail from local file storage
-            Image(
-                provider = ImageProvider(bitmap),
-                contentDescription = if (isVideo) "Video: ${state.title}" else "APOD: ${state.title}",
-                contentScale = ContentScale.Crop,
-                modifier = GlanceModifier.fillMaxSize()
-            )
-            
             // Show play icon overlay for videos with thumbnails
             if (isVideo) {
                 Box(
@@ -121,7 +121,8 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
                         style = TextStyle(
                             fontSize = 32.sp,
                             color = ColorProvider(Color.White),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Exo2WidgetFontFamily
                         )
                     )
                 }
@@ -129,9 +130,7 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
         } else {
             // Fallback: Show message for videos without thumbnails or missing images
             Box(
-                modifier = GlanceModifier
-                    .fillMaxSize()
-                    .background(Color(0xFF1A1A2E)),
+                modifier = GlanceModifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -139,11 +138,19 @@ private fun SmallWidgetLayout(state: ApodWidgetState.Success) {
                     style = TextStyle(
                         fontSize = 32.sp,
                         color = ColorProvider(Color.White),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Exo2WidgetFontFamily
                     )
                 )
             }
         }
+
+        WidgetDateBadge(
+            date = state.date,
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .padding(12.dp)
+        )
     }
 }
 
@@ -157,6 +164,11 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
     val context = LocalContext.current
     val isVideo = state.mediaType.equals("video", ignoreCase = true)
     val bitmap = state.imagePath?.let { loadBitmapFromFile(context, it) }
+    val backgroundModifier = if (bitmap != null) {
+        GlanceModifier.background(ImageProvider(bitmap), ContentScale.Crop)
+    } else {
+        GlanceModifier.background(Color(0xFF1A1A2E))
+    }
     
     // Create deep link action
     val deepLinkUrl = LinkGenerator.generatePhotoLink(state.date)
@@ -173,20 +185,10 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
         modifier = GlanceModifier
             .fillMaxSize()
             .cornerRadius(16.dp)
-            .background(Color(0xFF1A1A2E))
+            .then(backgroundModifier)
             .clickable(onClick = clickAction)
     ) {
-        if (bitmap != null) {
-            // Background image/thumbnail
-            Image(
-                provider = ImageProvider(bitmap),
-                contentDescription = if (isVideo) "Video: ${state.title}" else "APOD: ${state.title}",
-                contentScale = ContentScale.Crop,
-                modifier = GlanceModifier.fillMaxSize()
-            )
-        }
-        
-        // Content overlay at the bottom
+        // Title overlay at the bottom left
         Column(
             modifier = GlanceModifier
                 .fillMaxSize(),
@@ -209,7 +211,8 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
                         style = TextStyle(
                             color = ColorProvider(Color.White),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Exo2WidgetFontFamily
                         )
                     )
                 } else if (isVideo) {
@@ -219,7 +222,8 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
                         style = TextStyle(
                             color = ColorProvider(Color.White),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Exo2WidgetFontFamily
                         ),
                         maxLines = 2
                     )
@@ -230,24 +234,21 @@ private fun MediumLargeWidgetLayout(state: ApodWidgetState.Success) {
                         style = TextStyle(
                             color = ColorProvider(Color.White),
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Exo2WidgetFontFamily
                         ),
                         maxLines = 2
                     )
                 }
-
-                Spacer(modifier = GlanceModifier.height(4.dp))
-
-                // Date
-                Text(
-                    text = state.date,
-                    style = TextStyle(
-                        color = ColorProvider(Color.White.copy(alpha = 0.9f)),
-                        fontSize = 12.sp
-                    )
-                )
             }
         }
+
+        WidgetDateBadge(
+            date = state.date,
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .padding(14.dp)
+        )
     }
 }
 
@@ -275,7 +276,8 @@ private fun LoadingLayout() {
                 style = TextStyle(
                     color = ColorProvider(Color.White),
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
@@ -283,7 +285,8 @@ private fun LoadingLayout() {
                 text = "Fetching today's APOD",
                 style = TextStyle(
                     color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
         }
@@ -315,7 +318,8 @@ private fun NoDataLayout() {
                 style = TextStyle(
                     color = ColorProvider(Color.White),
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
@@ -323,7 +327,8 @@ private fun NoDataLayout() {
                 text = "Tap to open app",
                 style = TextStyle(
                     color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
@@ -331,7 +336,8 @@ private fun NoDataLayout() {
                 text = "and sync your first APOD",
                 style = TextStyle(
                     color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
         }
@@ -363,7 +369,8 @@ private fun ErrorLayout(message: String) {
                 style = TextStyle(
                     color = ColorProvider(Color(0xFFFF6B6B)),
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
@@ -371,7 +378,8 @@ private fun ErrorLayout(message: String) {
                 text = message,
                 style = TextStyle(
                     color = ColorProvider(Color.White.copy(alpha = 0.9f)),
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
             Spacer(modifier = GlanceModifier.height(4.dp))
@@ -379,11 +387,73 @@ private fun ErrorLayout(message: String) {
                 text = "Tap to retry",
                 style = TextStyle(
                     color = ColorProvider(Color.White.copy(alpha = 0.7f)),
-                    fontSize = 11.sp
+                    fontSize = 11.sp,
+                    fontFamily = Exo2WidgetFontFamily
                 )
             )
         }
     }
+}
+
+@Composable
+private fun WidgetDateBadge(
+    date: String,
+    modifier: GlanceModifier = GlanceModifier
+) {
+    val (month, day) = widgetDateParts(date)
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = GlanceModifier
+        ) {
+            Text(
+                text = month,
+                style = TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Exo2WidgetFontFamily
+                )
+            )
+            Text(
+                text = day,
+                style = TextStyle(
+                    color = ColorProvider(Color.White),
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Exo2WidgetFontFamily
+                )
+            )
+        }
+    }
+}
+
+private fun widgetDateParts(date: String): Pair<String, String> {
+    val parts = date.split("-")
+    if (parts.size != 3) return "APD" to ""
+
+    val month = when (parts[1]) {
+        "01" -> "JAN"
+        "02" -> "FEB"
+        "03" -> "MAR"
+        "04" -> "APR"
+        "05" -> "MAY"
+        "06" -> "JUN"
+        "07" -> "JUL"
+        "08" -> "AUG"
+        "09" -> "SEP"
+        "10" -> "OCT"
+        "11" -> "NOV"
+        "12" -> "DEC"
+        else -> parts[1].take(3).uppercase()
+    }
+    val day = parts[2].padStart(2, '0')
+
+    return month to day
 }
 
 /**

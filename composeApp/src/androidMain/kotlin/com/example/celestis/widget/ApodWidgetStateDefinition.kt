@@ -84,7 +84,7 @@ private class ApodWidgetStateDataStore(
                     if (canShowWidget) {
                         ApodWidgetState.Success(
                             title = apodEntity.title ?: "Astronomy Picture of the Day",
-                            date = formatDate(apodEntity.date),
+                            date = apodEntity.date,
                             imagePath = if (imagePath.exists()) imagePath.absolutePath else null,
                             mediaType = mediaType
                         )
@@ -111,39 +111,4 @@ private class ApodWidgetStateDataStore(
         return data.first()
     }
     
-    /**
-     * Formats a date string from YYYY-MM-DD to a more readable format.
-     */
-    private fun formatDate(dateString: String): String {
-        return try {
-            val parts = dateString.split("-")
-            if (parts.size == 3) {
-                val year = parts[0]
-                val month = parts[1]
-                val day = parts[2]
-                
-                val monthName = when (month) {
-                    "01" -> "Jan"
-                    "02" -> "Feb"
-                    "03" -> "Mar"
-                    "04" -> "Apr"
-                    "05" -> "May"
-                    "06" -> "Jun"
-                    "07" -> "Jul"
-                    "08" -> "Aug"
-                    "09" -> "Sep"
-                    "10" -> "Oct"
-                    "11" -> "Nov"
-                    "12" -> "Dec"
-                    else -> month
-                }
-                
-                "$monthName $day, $year"
-            } else {
-                dateString
-            }
-        } catch (e: Exception) {
-            dateString
-        }
-    }
 }

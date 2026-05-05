@@ -142,8 +142,6 @@ class HomeViewModel(
             _randomApod.value = next
             _isShowingRandom.value = true
 
-            prefetchHdImage(next.urlHD)
-
             // Pre-warm the next item so the following tap is instant
             randomQueue.firstOrNull()?.url?.let { nextUrl ->
                 launch(Dispatchers.IO) {
@@ -169,26 +167,6 @@ class HomeViewModel(
         _isImageLoading.value = false
     }
     
-    /**
-     * Prefetches HD image only when on Wi-Fi and not in low data mode.
-     * This ensures we don't waste cellular data or violate user preferences.
-     */
-    private fun prefetchHdImage(hdUrl: String?) {
-        hdUrl ?: return
-        
-        // Only prefetch HD images on Wi-Fi when not in low data mode
-        if (networkMonitor.isWifiActive && !networkMonitor.isLowDataMode) {
-            viewModelScope.launch(Dispatchers.IO) {
-                val request = ImageRequest.Builder(context)
-                    .data(hdUrl)
-                    .memoryCachePolicy(CachePolicy.ENABLED)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .build()
-                imageLoader.enqueue(request)
-            }
-        }
-    }
-
     private fun refillQueue(initial: Boolean = false) {
         if (prefetchJob?.isActive == true) return
 
@@ -310,16 +288,11 @@ class HomeViewModel(
     }
 
     /**
-     * Shows HD image if on Wi-Fi, otherwise falls back to standard resolution.
-     * This prevents wasting cellular data on large HD downloads.
+     * Shows the standard image. HD is avoided here to prevent large downloads
+     * on weak Wi-Fi or cellular data.
      */
     fun showHdImage(hdUrl: String?, standardUrl: String?) {
-        _selectedHdUrl.value = when {
-            // If on Wi-Fi and not in low data mode, use HD
-            networkMonitor.isWifiActive && !networkMonitor.isLowDataMode -> hdUrl ?: standardUrl
-            // Otherwise, use standard resolution
-            else -> standardUrl
-        }
+        _selectedHdUrl.value = standardUrl ?: hdUrl
     }
 
     fun hideHdImage() {

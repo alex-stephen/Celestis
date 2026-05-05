@@ -131,7 +131,7 @@ fun ShimmerApodGrid(
 }
 
 /**
- * Professional loading indicator for HD image fetch
+ * Professional loading indicator for full-screen image fetch
  */
 @Composable
 fun HdImageLoadingIndicator(modifier: Modifier = Modifier) {
@@ -150,7 +150,7 @@ fun HdImageLoadingIndicator(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Loading HD Image...",
+                text = "Loading Image...",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.9f)
             )

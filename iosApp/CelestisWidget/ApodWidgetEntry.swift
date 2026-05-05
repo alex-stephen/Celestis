@@ -45,4 +45,34 @@ struct ApodWidgetEntry: TimelineEntry {
         
         return apodDate
     }
+
+    var dateMonthAbbreviation: String {
+        guard let parsedDate = parsedApodDate else {
+            return String(apodDate.prefix(3)).uppercased()
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: parsedDate).uppercased()
+    }
+
+    var dateDayNumber: String {
+        guard let parsedDate = parsedApodDate else {
+            let parts = apodDate.split(separator: "-")
+            return parts.count == 3 ? String(Int(parts[2]) ?? 0) : ""
+        }
+
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd"
+        return formatter.string(from: parsedDate)
+    }
+
+    private var parsedApodDate: Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: apodDate)
+    }
 }

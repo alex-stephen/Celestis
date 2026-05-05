@@ -45,13 +45,13 @@ class PhotoDetailViewModel(
                 val apodResponse = apodEntity.toResponse()
                 _uiState.value = PhotoDetailUiState.Success(apodResponse)
                 
-                // PREDICTIVE HD PREFETCHING: Preload HD image immediately
+                // Preload the standard image only. HD is intentionally avoided for detail view.
                 ImagePrefetcher.prefetchApodComplete(
                     imageLoader = imageLoader,
                     context = context,
                     apod = apodResponse,
                     scope = viewModelScope,
-                    includeHd = true
+                    includeHd = false
                 )
             } catch (e: Exception) {
                 _uiState.value = PhotoDetailUiState.Error(e.message ?: "Unknown error")
@@ -75,18 +75,12 @@ class PhotoDetailViewModel(
     }
 
     /**
-     * Shows HD image if on Wi-Fi, otherwise falls back to standard resolution.
-     * This prevents wasting cellular data on large HD downloads.
+     * Shows the standard image. HD is avoided here to prevent large downloads
+     * on weak Wi-Fi or cellular data.
      */
     fun showHdImage(hdUrl: String?, standardUrl: String?) {
         val currentState = _uiState.value as? PhotoDetailUiState.Success ?: return
-        val selectedUrl = when {
-            // If on Wi-Fi and not in low data mode, use HD
-            networkMonitor.isWifiActive && !networkMonitor.isLowDataMode -> hdUrl ?: standardUrl
-            // Otherwise, use standard resolution
-            else -> standardUrl
-        }
-        _uiState.value = currentState.copy(selectedHdUrl = selectedUrl)
+        _uiState.value = currentState.copy(selectedHdUrl = standardUrl ?: hdUrl)
     }
 
     fun hideHdImage() {

@@ -25,5 +25,15 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/Exo2-Bold.ttf</string>
+		<string>Fonts/Exo2-ExtraBold.ttf</string>
+		<string>Fonts/Exo2-Italic.ttf</string>
+		<string>Fonts/Exo2-Light.ttf</string>
+		<string>Fonts/Exo2-Medium.ttf</string>
+		<string>Fonts/Exo2-Regular.ttf</string>
+		<string>Fonts/Exo2-SemiBold.ttf</string>
+	</array>
 </dict>
 </plist>

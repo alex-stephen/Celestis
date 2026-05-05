@@ -128,10 +128,8 @@ fun SharedTransitionScope.PhotoDetailScreen(
                         PhotoDetailContent(
                             state = state,
                             onImageClick = {
-                                state.apod.urlHD?.let { hdUrl ->
-                                    state.apod.url?.let { url ->
-                                        onShowHdImage(hdUrl, url)
-                                    }
+                                state.apod.url?.let { url ->
+                                    onShowHdImage(null, url)
                                 }
                             },
                             onFavoriteClick = onFavoriteClick,
@@ -155,7 +153,7 @@ fun SharedTransitionScope.PhotoDetailScreen(
                             ApodTopAppBar(
                                 titleContent = {
                                     Text(
-                                        text = "PHOTO DETAIL",
+                                        text = "DESCRIPTION",
                                         style = MaterialTheme.typography.titleMedium,
                                         color = Color.White,
                                         letterSpacing = 2.sp
@@ -271,7 +269,7 @@ fun SharedTransitionScope.PhotoDetailContent(
                     )
                 }
             } else {
-                // Header Image - 50% of viewport height, clickable for HD
+                // Header Image - 50% of viewport height, clickable for full-screen standard image
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -421,7 +419,7 @@ fun SharedTransitionScope.PhotoDetailContent(
             }
         }
 
-        // HD Image Popup
+        // Full-screen image popup
         if (state.selectedHdUrl != null) {
             HdImagePopup(
                 imageUrl = state.selectedHdUrl,

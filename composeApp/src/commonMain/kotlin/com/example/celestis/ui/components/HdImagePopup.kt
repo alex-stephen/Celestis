@@ -101,7 +101,7 @@ fun HdImagePopup(
     ) {
         AsyncImage(
             model = imageUrl,
-            contentDescription = "HD Image",
+            contentDescription = "Image",
             contentScale = ContentScale.Fit,
             onState = { state ->
                 isImageLoading = state is AsyncImagePainter.State.Loading

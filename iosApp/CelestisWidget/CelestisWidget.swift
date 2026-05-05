@@ -1,6 +1,24 @@
 import WidgetKit
 import SwiftUI
 
+private enum Exo2Font {
+    static func regular(size: CGFloat) -> Font {
+        .custom("Exo2-Regular", size: size)
+    }
+
+    static func medium(size: CGFloat) -> Font {
+        .custom("Exo2-Medium", size: size)
+    }
+
+    static func semiBold(size: CGFloat) -> Font {
+        .custom("Exo2-SemiBold", size: size)
+    }
+
+    static func bold(size: CGFloat) -> Font {
+        .custom("Exo2-Bold", size: size)
+    }
+}
+
 /**
  * Main APOD Widget for iOS using WidgetKit.
  *
@@ -60,18 +78,23 @@ struct SmallWidgetView: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 // Shown when the image hasn't downloaded yet.
                 Color(red: 0.1, green: 0.1, blue: 0.18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 VStack(spacing: 4) {
                     Text("🌌")
                         .font(.system(size: 36))
                     Text("APOD")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
+                        .font(Exo2Font.semiBold(size: 11))
                         .foregroundColor(.white.opacity(0.7))
                 }
             }
+
+            WidgetDateBadge(entry: entry, monthSize: 22, daySize: 44)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(12)
         }
         .clipped()
         .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
@@ -91,8 +114,10 @@ struct MediumWidgetView: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Color(red: 0.1, green: 0.1, blue: 0.18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // Gradient scrim
@@ -107,18 +132,17 @@ struct MediumWidgetView: View {
             // Text overlay
             VStack(alignment: .leading, spacing: 3) {
                 Text(entry.title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(Exo2Font.semiBold(size: 17))
                     .foregroundColor(.white)
                     .lineLimit(2)
-
-                Text(entry.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.85))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            WidgetDateBadge(entry: entry, monthSize: 22, daySize: 44)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(14)
         }
         .clipped()
         .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
@@ -138,8 +162,10 @@ struct LargeWidgetView: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 Color(red: 0.1, green: 0.1, blue: 0.18)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             // Gradient scrim – taller to accommodate the explanation text.
@@ -154,18 +180,13 @@ struct LargeWidgetView: View {
             // Text overlay
             VStack(alignment: .leading, spacing: 6) {
                 Text(entry.title)
-                    .font(.title3)
-                    .fontWeight(.bold)
+                    .font(Exo2Font.bold(size: 20))
                     .foregroundColor(.white)
                     .lineLimit(2)
 
-                Text(entry.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.white.opacity(0.85))
-
                 if let explanation = entry.explanation, !explanation.isEmpty {
                     Text(explanation)
-                        .font(.caption2)
+                        .font(Exo2Font.regular(size: 11))
                         .foregroundColor(.white.opacity(0.75))
                         .lineLimit(4)
                         .padding(.top, 2)
@@ -174,9 +195,30 @@ struct LargeWidgetView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            WidgetDateBadge(entry: entry, monthSize: 24, daySize: 48)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(14)
         }
         .clipped()
         .widgetURL(URL(string: "celestis://apod/\(entry.apodDate)"))
+    }
+}
+
+private struct WidgetDateBadge: View {
+    let entry: ApodWidgetEntry
+    let monthSize: CGFloat
+    let daySize: CGFloat
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Text(entry.dateMonthAbbreviation)
+                .font(Exo2Font.bold(size: monthSize))
+                .foregroundColor(.white)
+            Text(entry.dateDayNumber)
+                .font(Exo2Font.bold(size: daySize))
+                .foregroundColor(.white)
+        }
     }
 }
 

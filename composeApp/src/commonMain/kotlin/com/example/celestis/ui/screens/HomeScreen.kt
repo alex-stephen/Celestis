@@ -579,9 +579,10 @@ fun RandomApodActionButton(
     enabled: Boolean = true
 ) {
     var isRainbowing by remember { mutableStateOf(false) }
+    var rainbowPulse by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isRainbowing) {
-        if (isRainbowing) {
+    LaunchedEffect(rainbowPulse) {
+        if (rainbowPulse > 0) {
             delay(1500)
             isRainbowing = false
         }
@@ -608,6 +609,7 @@ fun RandomApodActionButton(
     Surface(
         onClick = {
             isRainbowing = true
+            rainbowPulse += 1
             onClick()
         },
         enabled = enabled,
@@ -792,4 +794,3 @@ fun MediaUnavailablePlaceholder(title: String?, modifier: Modifier = Modifier) {
         }
     }
 }
-
