@@ -40,6 +40,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.example.celestis.ui.utils.CommonBackHandler
@@ -59,10 +61,10 @@ fun HdImagePopup(
     // Transformation state using Animatable for smooth physics
     val scale = remember { Animatable(1f) }
     val offset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
-    
+
     // Container size for boundary calculations
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    
+
     // Min and max scale limits
     val minScale = 1f
     val maxScale = 5f
@@ -83,269 +85,274 @@ fun HdImagePopup(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
-            .onSizeChanged { containerSize = it }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        // Only dismiss if not zoomed
-                        if (scale.value <= 1.01f) {
-                            onDismiss()
-                        }
-                    }
-                )
-            }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = "Image",
-            contentScale = ContentScale.Fit,
-            onState = { state ->
-                isImageLoading = state is AsyncImagePainter.State.Loading
-            },
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale.value
-                    scaleY = scale.value
-                    translationX = offset.value.x
-                    translationY = offset.value.y
-                }
+                .background(Color.Black.copy(alpha = 0.95f))
+                .onSizeChanged { containerSize = it }
                 .pointerInput(Unit) {
-                    val velocityTracker = VelocityTracker()
-                    
-                    awaitEachGesture {
-                        awaitFirstDown(requireUnconsumed = false)
-                        velocityTracker.resetTracking()
-                        
-                        var zoom = scale.value
-                        var pan = offset.value
-                        var isZooming = false
-                        var lastPointerCount = 1
-                        
-                        do {
-                            val event = awaitPointerEvent()
-                            val canceled = event.changes.any { it.isConsumed }
-                            
-                            if (!canceled) {
-                                val currentPointerCount = event.changes.size
-                                val zoomChange = event.calculateZoom()
-                                val panChange = event.calculatePan()
-                                val centroid = event.calculateCentroid(useCurrent = true)
-                                
-                                // Track if we're actively zooming
-                                if (zoomChange != 1f) {
-                                    isZooming = true
-                                }
-                                
-                                // Handle zoom
-                                if (zoomChange != 1f) {
-                                    val newZoom = (zoom * zoomChange).coerceIn(minScale, maxScale)
-                                    
-                                    // Calculate focal point zoom - zoom centered on fingers
-                                    val focusPoint = centroid - Offset(
-                                        containerSize.width / 2f,
-                                        containerSize.height / 2f
-                                    )
-                                    
-                                    // Adjust pan to keep focal point stable
-                                    pan = (pan + focusPoint) * (newZoom / zoom) - focusPoint
-                                    zoom = newZoom
-                                }
-                                
-                                // Handle pan
-                                if (panChange != Offset.Zero) {
-                                    pan += panChange
-                                }
-                                
-                                // Constrain offset
-                                pan = constrainOffset(pan)
-                                
-                                // Update display immediately - no coroutine delay for responsiveness
-                                scale.updateBounds(zoom, zoom)
-                                offset.updateBounds(pan, pan)
-                                
-                                // Only track velocity when panning (not zooming) with single finger
-                                if (!isZooming && currentPointerCount == 1 && lastPointerCount == 1) {
-                                    event.changes.forEach { change ->
-                                        if (change.pressed) {
-                                            velocityTracker.addPosition(
-                                                change.uptimeMillis,
-                                                change.position
-                                            )
-                                        }
-                                    }
-                                }
-                                
-                                lastPointerCount = currentPointerCount
-                                
-                                // Consume the event
-                                event.changes.forEach { it.consume() }
-                            }
-                        } while (event.changes.any { it.pressed })
-                        
-                        // Gesture ended
-                        scope.launch {
-                            // Sync actual values with what we've been displaying
-                            scale.snapTo(zoom)
-                            offset.snapTo(pan)
-                            
+                    detectTapGestures(
+                        onTap = {
+                            // Only dismiss if not zoomed
                             if (scale.value <= 1.01f) {
-                                // At minimum scale - check for swipe to dismiss
-                                val velocity = velocityTracker.calculateVelocity()
-                                val verticalVelocity = velocity.y
-                                val verticalOffset = offset.value.y
-                                
-                                if (verticalOffset.absoluteValue > 200f || verticalVelocity.absoluteValue > 2000f) {
-                                    // Dismiss immediately - no animation
-                                    onDismiss()
-                                } else {
-                                    // Bounce back to center
-                                    launch {
-                                        scale.animateTo(
-                                            1f,
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                        )
+                                onDismiss()
+                            }
+                        }
+                    )
+                }
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = "Image",
+                contentScale = ContentScale.Fit,
+                onState = { state ->
+                    isImageLoading = state is AsyncImagePainter.State.Loading
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = scale.value
+                        scaleY = scale.value
+                        translationX = offset.value.x
+                        translationY = offset.value.y
+                    }
+                    .pointerInput(Unit) {
+                        val velocityTracker = VelocityTracker()
+
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            velocityTracker.resetTracking()
+
+                            var zoom = scale.value
+                            var pan = offset.value
+                            var isZooming = false
+                            var lastPointerCount = 1
+
+                            do {
+                                val event = awaitPointerEvent()
+                                val canceled = event.changes.any { it.isConsumed }
+
+                                if (!canceled) {
+                                    val currentPointerCount = event.changes.size
+                                    val zoomChange = event.calculateZoom()
+                                    val panChange = event.calculatePan()
+                                    val centroid = event.calculateCentroid(useCurrent = true)
+
+                                    // Track if we're actively zooming
+                                    if (zoomChange != 1f) {
+                                        isZooming = true
                                     }
-                                    launch {
-                                        offset.animateTo(
-                                            Offset.Zero,
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
+
+                                    // Handle zoom
+                                    if (zoomChange != 1f) {
+                                        val newZoom = (zoom * zoomChange).coerceIn(minScale, maxScale)
+
+                                        // Calculate focal point zoom - zoom centered on fingers
+                                        val focusPoint = centroid - Offset(
+                                            containerSize.width / 2f,
+                                            containerSize.height / 2f
                                         )
+
+                                        // Adjust pan to keep focal point stable
+                                        pan = (pan + focusPoint) * (newZoom / zoom) - focusPoint
+                                        zoom = newZoom
                                     }
-                                }
-                            } else {
-                                // Zoomed in - only apply fling if we weren't zooming
-                                if (!isZooming) {
-                                    val velocity = velocityTracker.calculateVelocity()
-                                    
-                                    launch {
-                                        // Apply fling with decay
-                                        try {
-                                            offset.animateDecay(
-                                                initialVelocity = Offset(velocity.x, velocity.y),
-                                                animationSpec = androidx.compose.animation.core.exponentialDecay(
-                                                    frictionMultiplier = 2.5f,
-                                                    absVelocityThreshold = 0.1f
-                                                )
-                                            )
-                                        } catch (e: Exception) {
-                                            // Animation cancelled
-                                        } finally {
-                                            // Ensure we're within bounds
-                                            val constrained = constrainOffset(offset.value)
-                                            if (constrained != offset.value) {
-                                                offset.animateTo(
-                                                    constrained,
-                                                    spring(
-                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                        stiffness = Spring.StiffnessLow
-                                                    )
+
+                                    // Handle pan
+                                    if (panChange != Offset.Zero) {
+                                        pan += panChange
+                                    }
+
+                                    // Constrain offset
+                                    pan = constrainOffset(pan)
+
+                                    // Update display immediately - no coroutine delay for responsiveness
+                                    scale.updateBounds(zoom, zoom)
+                                    offset.updateBounds(pan, pan)
+
+                                    // Only track velocity when panning (not zooming) with single finger
+                                    if (!isZooming && currentPointerCount == 1 && lastPointerCount == 1) {
+                                        event.changes.forEach { change ->
+                                            if (change.pressed) {
+                                                velocityTracker.addPosition(
+                                                    change.uptimeMillis,
+                                                    change.position
                                                 )
                                             }
                                         }
                                     }
-                                } else {
-                                    // Was zooming - just ensure bounds without fling
-                                    val constrained = constrainOffset(offset.value)
-                                    if (constrained != offset.value) {
-                                        offset.animateTo(
-                                            constrained,
-                                            spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessLow
+
+                                    lastPointerCount = currentPointerCount
+
+                                    // Consume the event
+                                    event.changes.forEach { it.consume() }
+                                }
+                            } while (event.changes.any { it.pressed })
+
+                            // Gesture ended
+                            scope.launch {
+                                // Sync actual values with what we've been displaying
+                                scale.snapTo(zoom)
+                                offset.snapTo(pan)
+
+                                if (scale.value <= 1.01f) {
+                                    // At minimum scale - check for swipe to dismiss
+                                    val velocity = velocityTracker.calculateVelocity()
+                                    val verticalVelocity = velocity.y
+                                    val verticalOffset = offset.value.y
+
+                                    if (verticalOffset.absoluteValue > 200f || verticalVelocity.absoluteValue > 2000f) {
+                                        // Dismiss immediately - no animation
+                                        onDismiss()
+                                    } else {
+                                        // Bounce back to center
+                                        launch {
+                                            scale.animateTo(
+                                                1f,
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
-                                        )
+                                        }
+                                        launch {
+                                            offset.animateTo(
+                                                Offset.Zero,
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    // Zoomed in - only apply fling if we weren't zooming
+                                    if (!isZooming) {
+                                        val velocity = velocityTracker.calculateVelocity()
+
+                                        launch {
+                                            // Apply fling with decay
+                                            try {
+                                                offset.animateDecay(
+                                                    initialVelocity = Offset(velocity.x, velocity.y),
+                                                    animationSpec = androidx.compose.animation.core.exponentialDecay(
+                                                        frictionMultiplier = 2.5f,
+                                                        absVelocityThreshold = 0.1f
+                                                    )
+                                                )
+                                            } catch (e: Exception) {
+                                                // Animation cancelled
+                                            } finally {
+                                                // Ensure we're within bounds
+                                                val constrained = constrainOffset(offset.value)
+                                                if (constrained != offset.value) {
+                                                    offset.animateTo(
+                                                        constrained,
+                                                        spring(
+                                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                            stiffness = Spring.StiffnessLow
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Was zooming - just ensure bounds without fling
+                                        val constrained = constrainOffset(offset.value)
+                                        if (constrained != offset.value) {
+                                            offset.animateTo(
+                                                constrained,
+                                                spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessLow
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = { tapOffset ->
-                            scope.launch {
-                                if (scale.value > 1.5f) {
-                                    // Zoom out to default
-                                    launch {
-                                        scale.animateTo(
-                                            targetValue = 1f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = { tapOffset ->
+                                scope.launch {
+                                    if (scale.value > 1.5f) {
+                                        // Zoom out to default
+                                        launch {
+                                            scale.animateTo(
+                                                targetValue = 1f,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
-                                        )
-                                    }
-                                    launch {
-                                        offset.animateTo(
-                                            targetValue = Offset.Zero,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
+                                        }
+                                        launch {
+                                            offset.animateTo(
+                                                targetValue = Offset.Zero,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
-                                        )
-                                    }
-                                } else {
-                                    // Zoom in to the tapped point
-                                    val targetScale = 3f
-                                    
-                                    // Calculate focal point
-                                    val centerX = containerSize.width / 2f
-                                    val centerY = containerSize.height / 2f
-                                    val focusPoint = tapOffset - Offset(centerX, centerY)
-                                    
-                                    // Calculate target offset to keep tap point in same screen position
-                                    val targetOffset = focusPoint * (1f - targetScale)
-                                    
-                                    launch {
-                                        scale.animateTo(
-                                            targetValue = targetScale,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
+                                        }
+                                    } else {
+                                        // Zoom in to the tapped point
+                                        val targetScale = 3f
+
+                                        // Calculate focal point
+                                        val centerX = containerSize.width / 2f
+                                        val centerY = containerSize.height / 2f
+                                        val focusPoint = tapOffset - Offset(centerX, centerY)
+
+                                        // Calculate target offset to keep tap point in same screen position
+                                        val targetOffset = focusPoint * (1f - targetScale)
+
+                                        launch {
+                                            scale.animateTo(
+                                                targetValue = targetScale,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
-                                        )
-                                    }
-                                    launch {
-                                        offset.animateTo(
-                                            targetValue = targetOffset,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
+                                        }
+                                        launch {
+                                            offset.animateTo(
+                                                targetValue = targetOffset,
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    )
-                },
-        )
-        if (isImageLoading) {
-            HdImageLoadingIndicator(Modifier.align(Alignment.Center))
-        }
+                        )
+                    },
+            )
+            if (isImageLoading) {
+                HdImageLoadingIndicator(Modifier.align(Alignment.Center))
+            }
 
-        // Close button
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(WindowInsets.safeDrawing.asPaddingValues())
-                .padding(16.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.3f))
-        ) {
-            Icon(Icons.Default.Close, "Close", tint = Color.White)
+            // Close button
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(WindowInsets.safeDrawing.asPaddingValues())
+                    .padding(16.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.3f))
+            ) {
+                Icon(Icons.Default.Close, "Close", tint = Color.White)
+            }
         }
     }
 }

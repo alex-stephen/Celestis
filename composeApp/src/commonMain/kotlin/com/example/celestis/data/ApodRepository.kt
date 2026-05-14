@@ -10,6 +10,7 @@ import com.example.celestis.Platform
 import com.example.celestis.database.ApodEntity
 import com.example.celestis.database.AppDatabase
 import com.example.celestis.model.ApodResponse
+import com.example.celestis.observability.CrashReporter
 import com.example.celestis.service.NasaApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -66,8 +67,7 @@ class ApodRepository(
             precacheImage(remote.url)
             saveToLocal(remote)
         } catch (e: Exception) {
-            // PRODUCTION: Silent fail with cached data fallback
-            // TODO: Log to analytics service (e.g., Sentry/Firebase Crashlytics)
+            CrashReporter.recordException(e, "Failed to refresh latest APOD")
         }
     }
 
@@ -272,8 +272,7 @@ class ApodRepository(
             try {
                 queries.deleteOldNonFavorites()
             } catch (e: Exception) {
-                // PRODUCTION: Silent maintenance failure
-                // TODO: Log to analytics service
+                CrashReporter.recordException(e, "Failed to prune APOD cache")
             }
         }
     }

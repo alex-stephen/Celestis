@@ -91,6 +91,8 @@ import com.example.celestis.ui.components.CelestisRangePicker
 import com.example.celestis.ui.components.ShimmerApodGrid
 import com.example.celestis.ui.components.VideoPlaceholder
 import com.example.celestis.ui.navigation.TopBarState
+import com.example.celestis.ui.navigation.apodNavigationOverlayWidth
+import com.example.celestis.ui.navigation.apodTopAppBarContentHeight
 import com.example.celestis.ui.utils.HapticFeedbackType
 import com.example.celestis.ui.utils.VideoUrlUtils
 import com.example.celestis.ui.utils.createHapticFeedback
@@ -120,9 +122,9 @@ fun SharedTransitionScope.DiscoverScreen(
     topBarState: TopBarState
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
-    val isLandscape = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val appBarContentHeight = if (isLandscape) 42.dp else 65.dp
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val density = LocalDensity.current
     var overlayHeightPx by remember { mutableStateOf(0) }
@@ -145,12 +147,22 @@ fun SharedTransitionScope.DiscoverScreen(
                         WindowWidthSizeClass.Medium -> 4
                         else -> 5
                     }
-                    ShimmerApodGrid(columns = gridCols, itemCount = 30)
+                    Box(modifier = Modifier.padding(start = navigationOverlayWidth)) {
+                        ShimmerApodGrid(columns = gridCols, itemCount = 30)
+                    }
                 }
 
-                is DiscoverUiState.Error -> DiscoverScreenError(state)
+                is DiscoverUiState.Error -> {
+                    Box(modifier = Modifier.padding(start = navigationOverlayWidth)) {
+                        DiscoverScreenError(state)
+                    }
+                }
                 is DiscoverUiState.Success -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = navigationOverlayWidth)
+                    ) {
                         DiscoverScreenGrid(
                             state = state,
                             windowSizeClass = windowSizeClass,
@@ -172,6 +184,7 @@ fun SharedTransitionScope.DiscoverScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(start = navigationOverlayWidth)
                 .onSizeChanged { overlayHeightPx = it.height }
         ) {
             // Animated visibility for the search app bar
@@ -188,7 +201,8 @@ fun SharedTransitionScope.DiscoverScreen(
                     onRandomClick = onRandomClick,
                     isRandomLoading = uiState is DiscoverUiState.Loading ||
                         (uiState is DiscoverUiState.Success && uiState.isRefreshing && uiState.displayMode == DisplayMode.RANDOM),
-                    hazeState = hazeState
+                    hazeState = hazeState,
+                    windowSizeClass = windowSizeClass
                 )
             }
 
@@ -590,10 +604,12 @@ fun DiscoverSearchAppBar(
     onRandomClick: () -> Unit,
     isRandomLoading: Boolean,
     hazeState: HazeState,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val haptic = remember { createHapticFeedback() }
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
 
     // Outer Surface: Background extends through status bar
     Surface(
@@ -626,7 +642,7 @@ fun DiscoverSearchAppBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .height(65.dp)
+                .height(appBarContentHeight)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

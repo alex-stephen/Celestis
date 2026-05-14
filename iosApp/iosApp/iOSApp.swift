@@ -3,6 +3,7 @@ import ComposeApp
 import BackgroundTasks
 import WidgetKit
 import FirebaseCore
+import FirebaseCrashlytics
 import FirebaseMessaging
 
 // MARK: - Firebase availability helper
@@ -128,6 +129,7 @@ struct iOSApp: App {
         // and add it to the iosApp/iosApp/ folder to enable push notifications.
         if isFirebaseAvailable {
             FirebaseApp.configure()
+            Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
         } else {
             print("[Celestis] WARNING: GoogleService-Info.plist not found — " +
                   "Firebase/FCM push notifications are disabled. " +
