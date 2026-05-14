@@ -29,3 +29,5 @@ google-services.json
 AGENTS.md
 .env
 GoogleService-Info.plist
+
+docs/

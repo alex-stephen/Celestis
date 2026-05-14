@@ -10,6 +10,7 @@
 		5495EDE92F85772500D3C3C7 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 5495EDE82F85772500D3C3C7 /* libsqlite3.tbd */; };
 		FBAA000000000000000000B1 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA000000000000000000A1 /* FirebaseCore */; };
 		FBAA000000000000000000B2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA000000000000000000A2 /* FirebaseMessaging */; };
+		FBAA000000000000000000B3 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = FBAA000000000000000000A3 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 			files = (
 				5495EDE92F85772500D3C3C7 /* libsqlite3.tbd in Frameworks */,
 				FBAA000000000000000000B1 /* FirebaseCore in Frameworks */,
+				FBAA000000000000000000B3 /* FirebaseCrashlytics in Frameworks */,
 				FBAA000000000000000000B2 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -105,6 +107,7 @@
 			name = iosApp;
 			packageProductDependencies = (
 				FBAA000000000000000000A1 /* FirebaseCore */,
+				FBAA000000000000000000A3 /* FirebaseCrashlytics */,
 				FBAA000000000000000000A2 /* FirebaseMessaging */,
 			);
 			productName = iosApp;
@@ -321,10 +324,12 @@
 		57F9485F6498E86B756CF88D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					APS_ENVIRONMENT = production;
+					CODE_SIGN_IDENTITY = "Apple Development";
+					CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
+					CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -349,10 +354,12 @@
 		89C81D997CCCE8372F77D9F0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					APS_ENVIRONMENT = development;
+					CODE_SIGN_IDENTITY = "Apple Development";
+					CODE_SIGN_ENTITLEMENTS = iosApp/iosApp.entitlements;
+					CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -418,6 +425,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		FBAA000000000000000000A3 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FBAA000000000000000000C1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

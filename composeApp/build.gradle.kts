@@ -11,6 +11,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.buildkonfig)
     alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
 }
 
 sqldelight {
@@ -56,6 +57,7 @@ kotlin {
             implementation(libs.androidx.glance)
             implementation(libs.androidx.glance.appwidget)
             implementation(libs.firebase.messaging)
+            implementation(libs.firebase.crashlytics)
             implementation(libs.androidx.glance.material3)
         }
         commonMain.dependencies {
@@ -121,13 +123,37 @@ buildkonfig {
 android {
     namespace = "com.example.celestis"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
+    val releaseStoreFilePath = localProperties.getProperty("RELEASE_STORE_FILE")
+        ?: System.getenv("CELESTIS_RELEASE_STORE_FILE")
+    val releaseStorePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD")
+        ?: System.getenv("CELESTIS_RELEASE_STORE_PASSWORD")
+    val releaseKeyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS")
+        ?: System.getenv("CELESTIS_RELEASE_KEY_ALIAS")
+    val releaseKeyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD")
+        ?: System.getenv("CELESTIS_RELEASE_KEY_PASSWORD")
+    val hasReleaseSigning = listOf(
+        releaseStoreFilePath,
+        releaseStorePassword,
+        releaseKeyAlias,
+        releaseKeyPassword
+    ).all { !it.isNullOrBlank() }
 
     defaultConfig {
-        applicationId = "com.example.celestis" // This tells Android "I am an App"
+        applicationId = "com.example.celestis"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+    }
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = rootProject.file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
     packaging {
         resources {
@@ -137,6 +163,9 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
