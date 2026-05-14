@@ -12,7 +12,9 @@ import com.example.celestis.notifications.NotificationScheduler
 import com.example.celestis.notifications.PushNotificationManager
 import com.example.celestis.sync.AndroidSyncManager
 import com.example.celestis.sync.BackgroundSyncManager
+import com.example.celestis.ui.utils.AndroidAppActionManager
 import com.example.celestis.ui.utils.AndroidShareManager
+import com.example.celestis.ui.utils.AppActionManager
 import com.example.celestis.ui.utils.ShareManager
 import org.koin.dsl.module
 
@@ -31,6 +33,7 @@ val androidModule = module {
 
     single<Platform> { AndroidPlatform(get()) }
     single<ShareManager> { AndroidShareManager(get<Platform>().context) }
+    single<AppActionManager> { AndroidAppActionManager(get<Platform>().context) }
     single { NetworkMonitor(get()) }
     single<BackgroundSyncManager> { AndroidSyncManager(get()) }
     single<NotificationScheduler> { AndroidNotificationScheduler(get()) }

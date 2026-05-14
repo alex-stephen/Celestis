@@ -16,6 +16,7 @@ import com.example.celestis.ui.viewModels.DiscoverViewModel
 import com.example.celestis.ui.viewModels.FavoriteViewModel
 import com.example.celestis.ui.viewModels.HomeViewModel
 import com.example.celestis.ui.viewModels.PhotoDetailViewModel
+import com.example.celestis.ui.viewModels.SettingsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import okio.FileSystem
@@ -80,4 +81,6 @@ val commonModule = module {
     viewModel { HomeViewModel(get(), get(), get<Platform>().context, get(), get()) }
 
     viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context, get(), get()) }
+
+    viewModel { SettingsViewModel(get(), get(), get()) }
 }

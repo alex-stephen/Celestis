@@ -37,6 +37,7 @@ import com.example.celestis.ui.viewModels.FavoriteUiState
 import com.example.celestis.ui.viewModels.FavoriteViewModel
 import com.example.celestis.ui.viewModels.HomeUiState
 import com.example.celestis.ui.viewModels.HomeViewModel
+import com.example.celestis.ui.viewModels.SettingsViewModel
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
@@ -75,6 +76,7 @@ fun MainPagerScreen(
     // Track top bar visibility state for Discover and Favorite screens
     val discoverTopBarState = remember { TopBarState() }
     val favoriteTopBarState = remember { TopBarState() }
+    val settingsTopBarState = remember { TopBarState() }
 
     val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val customBottomBarHeight = 70.dp + navigationBarBottom
@@ -83,6 +85,7 @@ fun MainPagerScreen(
     val homeViewModel: HomeViewModel = koinViewModel()
     val discoverViewModel: DiscoverViewModel = koinViewModel()
     val favoriteViewModel: FavoriteViewModel = koinViewModel()
+    val settingsViewModel: SettingsViewModel = koinViewModel()
 
     // Collect UI states
     val homeUiState by homeViewModel.uiState.collectAsStateWithLifecycle()
@@ -93,6 +96,7 @@ fun MainPagerScreen(
     val searchQuery by discoverViewModel.searchQuery.collectAsStateWithLifecycle()
 
     val favoriteUiState by favoriteViewModel.uiState.collectAsStateWithLifecycle()
+    val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
     val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
 
@@ -168,6 +172,20 @@ fun MainPagerScreen(
                     },
                     hazeState = hazeState,
                     topBarState = favoriteTopBarState
+                )
+
+                NavItem.Settings -> SettingsScreen(
+                    state = settingsUiState,
+                    windowSizeClass = windowSizeClass,
+                    hazeState = hazeState,
+                    topBarState = settingsTopBarState,
+                    onPrivacyPolicyClick = {},
+                    onClearCacheClick = settingsViewModel::clearCache,
+                    onTermsClick = {},
+                    onNotificationsClick = settingsViewModel::openNotificationSettings,
+                    onReportBugClick = settingsViewModel::reportBug,
+                    onLeaveReviewClick = settingsViewModel::leaveReview,
+                    onShareAppClick = settingsViewModel::shareApp
                 )
             }
         }

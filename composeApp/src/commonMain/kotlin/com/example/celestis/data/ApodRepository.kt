@@ -276,6 +276,12 @@ class ApodRepository(
             }
         }
     }
+
+    suspend fun clearNonFavoriteCache(): Long = withContext(Dispatchers.IO) {
+        val removedCount = queries.countNonFavorites().executeAsOne()
+        queries.clearNonFavoriteCache()
+        removedCount
+    }
 }
 
 fun ApodEntity.toResponse(): ApodResponse {

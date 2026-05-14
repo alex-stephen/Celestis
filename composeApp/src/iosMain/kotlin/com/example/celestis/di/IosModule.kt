@@ -12,6 +12,8 @@ import com.example.celestis.notifications.NotificationScheduler
 import com.example.celestis.notifications.PushNotificationManager
 import com.example.celestis.sync.BackgroundSyncManager
 import com.example.celestis.sync.IosSyncManager
+import com.example.celestis.ui.utils.AppActionManager
+import com.example.celestis.ui.utils.IosAppActionManager
 import com.example.celestis.ui.utils.IosShareManager
 import com.example.celestis.ui.utils.ShareManager
 import org.koin.dsl.module
@@ -30,6 +32,7 @@ val iosModule = module {
 
     single<Platform> { IOSPlatform() }
     single<ShareManager> { IosShareManager() }
+    single<AppActionManager> { IosAppActionManager() }
     single { NetworkMonitor() }
     single<NotificationScheduler> { IosNotificationScheduler() }
     single<PushNotificationManager> { IosPushNotificationManager() }
