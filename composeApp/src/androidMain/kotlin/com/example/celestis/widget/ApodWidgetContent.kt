@@ -404,7 +404,7 @@ private fun WidgetDateBadge(
 
     Box(
         modifier = modifier,
-        contentAlignment = Alignment.BottomEnd
+        contentAlignment = Alignment.TopEnd
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
