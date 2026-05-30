@@ -28,7 +28,7 @@ class CelestisFcmService : FirebaseMessagingService(), KoinComponent {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onNewToken(token: String) {
-        Log.d(TAG, "FCM token refreshed: $token")
+        Log.d(TAG, "FCM token refreshed")
         serviceScope.launch {
             try {
                 repository.registerDeviceToken(token, "android")
