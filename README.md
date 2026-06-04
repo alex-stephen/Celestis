@@ -17,6 +17,26 @@ The project combines a polished mobile experience with an accompanying Kotlin ba
 - Background sync flows for keeping cached APOD content and widgets current
 - Companion Kotlin Ktor backend for APOD proxying, MongoDB caching, search, ratings, and notification workflows
 
+## Screenshots
+
+Celestis adapts from compact phone layouts to larger tablet, landscape, and foldable experiences while preserving the same shared Compose Multiplatform UI.
+
+<p align="center">
+  <img src="docs/screenshots/landscape-tablet-home.png" alt="Celestis landscape tablet home screen" width="88%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/phone-home.png" alt="Celestis phone home screen" width="23%">
+  <img src="docs/screenshots/phone-discover.png" alt="Celestis phone discover screen" width="23%">
+  <img src="docs/screenshots/phone-description.png" alt="Celestis phone description screen" width="23%">
+  <img src="docs/screenshots/tablet-home.png" alt="Celestis portrait tablet home screen" width="32%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/foldable-explore.png" alt="Celestis foldable explore screen" width="48%">
+  <img src="docs/screenshots/foldable-description.png" alt="Celestis foldable description screen" width="48%">
+</p>
+
 ## Architecture
 
 ```text
@@ -60,4 +80,3 @@ The backend is designed to sit between the app and NASA's APOD API. It provides 
 - WidgetKit / SwiftUI
 - MongoDB-backed Kotlin Ktor backend
 - Google Cloud Run
-
