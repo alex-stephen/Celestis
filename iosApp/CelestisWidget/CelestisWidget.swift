@@ -24,8 +24,8 @@ private enum Exo2Font {
  *
  * Supports three sizes:
  *   • Small  – full-bleed APOD image (tap opens the detail screen)
- *   • Medium – image with title + date overlay at the bottom
- *   • Large  – image with title, date, and explanation preview
+ *   • Medium – image with title overlay and date badge
+ *   • Large  – image with title, date badge, and explanation preview
  *
  * Data flow:
  *   The widget reads APOD data that the main app's `IosSyncManager` writes to
@@ -93,7 +93,7 @@ struct SmallWidgetView: View {
             }
 
             WidgetDateBadge(entry: entry, monthSize: 22, daySize: 44)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(12)
         }
         .clipped()
@@ -141,7 +141,7 @@ struct MediumWidgetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             WidgetDateBadge(entry: entry, monthSize: 22, daySize: 44)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(14)
         }
         .clipped()
@@ -197,7 +197,7 @@ struct LargeWidgetView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             WidgetDateBadge(entry: entry, monthSize: 24, daySize: 48)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(14)
         }
         .clipped()

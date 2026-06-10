@@ -1,0 +1,77 @@
+import kotlin.Boolean;
+
+CREATE TABLE ApodEntity (
+    date TEXT NOT NULL PRIMARY KEY, -- The date is unique and fixed
+    explanation TEXT,
+    mediaType TEXT,
+    serviceVersion TEXT,
+    title TEXT,
+    urlHD TEXT,
+    url TEXT,
+    thumbnailUrl TEXT,
+    tags TEXT, -- Store as JSON string: ["Mars", "Rover"]
+    copyright TEXT,
+    isFavorite INTEGER AS Boolean NOT NULL DEFAULT 0,
+    createdAt TEXT,
+    averageRating INTEGER,
+    totalVotes INTEGER
+);
+
+insertApod:
+INSERT OR REPLACE INTO ApodEntity(
+    date, explanation, mediaType, serviceVersion,
+    title, urlHD, url, thumbnailUrl, tags,
+    copyright, isFavorite, createdAt, averageRating, totalVotes
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getApodByDate:
+SELECT * FROM ApodEntity WHERE date = ?;
+
+updateFavorite:
+UPDATE ApodEntity SET isFavorite = ? WHERE date = ?;
+
+getAllFavorites:
+SELECT * FROM ApodEntity WHERE isFavorite = 1 ORDER BY date DESC;
+
+deleteOldNonFavorites:
+DELETE FROM ApodEntity
+WHERE isFavorite = 0
+AND date NOT IN (
+    SELECT date FROM ApodEntity
+    ORDER BY date DESC
+    LIMIT 100
+);
+
+getLatestApod:
+SELECT * FROM ApodEntity
+ORDER BY date DESC
+LIMIT 1;
+
+CREATE INDEX IF NOT EXISTS apod_date_idx ON ApodEntity(date);
+
+countSearchLocalApods:
+SELECT count(*)
+FROM ApodEntity
+WHERE (title LIKE :query OR explanation LIKE :query OR tags LIKE :query OR copyright LIKE :query);
+
+searchLocalApods:
+SELECT * FROM ApodEntity
+WHERE (title LIKE :query OR explanation LIKE :query OR tags LIKE :query OR copyright LIKE :query)
+ORDER BY date DESC
+LIMIT :limit OFFSET :offset;
+
+-- Indexing favorites makes the "My Favorites" screen load instantly
+CREATE INDEX IF NOT EXISTS apod_favorite_index ON ApodEntity(isFavorite);
+
+countNonFavorites:
+SELECT COUNT(*) FROM ApodEntity WHERE isFavorite = 0;
+
+clearNonFavoriteCache:
+DELETE FROM ApodEntity WHERE isFavorite = 0;
+
+getAllApods:
+SELECT * FROM ApodEntity ORDER BY date DESC;
+
+getRandomCachedApods:
+SELECT * FROM ApodEntity ORDER BY RANDOM() LIMIT ?;

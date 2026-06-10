@@ -26,7 +26,7 @@ import Foundation
  * ## Data sharing between the app and the widget extension
  *
  * Both the main app target and the CelestisWidget extension must have the
- * "group.com.example.celestis" App Group capability enabled in their Xcode
+ * "group.com.alexstephen.celestis80085" App Group capability enabled in their Xcode
  * entitlements.  The IosSyncManager (Kotlin) writes to this group after every
  * successful sync; this provider reads from it.
  *
@@ -42,7 +42,7 @@ struct ApodTimelineProvider: TimelineProvider {
 
     // MARK: - Constants
 
-    private let appGroupID = "group.com.example.celestis"
+    private let appGroupID = "group.com.alexstephen.celestis80085"
 
     // MARK: - TimelineProvider
 

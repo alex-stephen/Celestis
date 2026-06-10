@@ -139,7 +139,7 @@ struct iOSApp: App {
 
         // Register the background-task handler BEFORE the app finishes launching.
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: "com.example.celestis.refresh",
+            forTaskWithIdentifier: "com.alexstephen.celestis80085.refresh",
             using: nil
         ) { task in
             handleAppRefresh(task: task as! BGAppRefreshTask)

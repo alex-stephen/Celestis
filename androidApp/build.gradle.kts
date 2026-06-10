@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.celestis.android"
+    namespace = "com.alexstephen.celestis80085.android"
     compileSdk = 36
 
     defaultConfig {

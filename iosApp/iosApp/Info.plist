@@ -4,7 +4,7 @@
 	<dict>
 		<key>BGTaskSchedulerPermittedIdentifiers</key>
 		<array>
-			<string>com.example.celestis.refresh</string>
+			<string>com.alexstephen.celestis80085.refresh</string>
 		</array>
 		<key>UIBackgroundModes</key>
 		<array>
@@ -19,7 +19,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.example.celestis</string>
+			<string>com.alexstephen.celestis80085</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>getcelestis</string>
