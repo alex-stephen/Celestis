@@ -1,0 +1,50 @@
+name: Android Release AAB
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "android-v*"
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore Firebase Android config
+        run: |
+          test -n "${{ secrets.CELESTIS_GOOGLE_SERVICES_JSON_BASE64 }}"
+          echo "${{ secrets.CELESTIS_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 --decode > composeApp/google-services.json
+
+      - name: Restore upload keystore
+        run: |
+          test -n "${{ secrets.CELESTIS_UPLOAD_KEYSTORE_BASE64 }}"
+          mkdir -p release
+          echo "${{ secrets.CELESTIS_UPLOAD_KEYSTORE_BASE64 }}" | base64 --decode > release/upload-keystore.jks
+
+      - name: Build release AAB
+        env:
+          CELESTIS_BASE_URL: ${{ secrets.CELESTIS_BASE_URL }}
+          CELESTIS_RELEASE_STORE_FILE: release/upload-keystore.jks
+          CELESTIS_RELEASE_STORE_PASSWORD: ${{ secrets.CELESTIS_RELEASE_STORE_PASSWORD }}
+          CELESTIS_RELEASE_KEY_ALIAS: ${{ secrets.CELESTIS_RELEASE_KEY_ALIAS }}
+          CELESTIS_RELEASE_KEY_PASSWORD: ${{ secrets.CELESTIS_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew --no-configuration-cache :composeApp:bundleRelease
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: celestis-release-aab
+          path: composeApp/build/outputs/bundle/release/composeApp-release.aab

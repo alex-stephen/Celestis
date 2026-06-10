@@ -17,7 +17,7 @@ plugins {
 sqldelight {
     databases {
         create("AppDatabase") {
-            packageName.set("com.example.celestis.database")
+            packageName.set("com.alexstephen.celestis80085.database")
             generateAsync.set(false)
             deriveSchemaFromMigrations.set(false)
         }
@@ -105,23 +105,37 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
+val configuredBaseUrl = localProperties.getProperty("BASE_URL")
+    ?: System.getenv("CELESTIS_BASE_URL")
+    ?: ""
+val releaseUrlRequired = gradle.startParameter.taskNames.any { taskName ->
+    taskName.endsWith("assembleRelease") ||
+        taskName.endsWith("bundleRelease") ||
+        taskName.endsWith("packageRelease") ||
+        (taskName.endsWith("embedAndSignAppleFrameworkForXcode") &&
+            System.getenv("CONFIGURATION") == "Release")
+}
+check(!releaseUrlRequired || configuredBaseUrl.isNotBlank()) {
+    "BASE_URL must be set in local.properties or CELESTIS_BASE_URL before building a release artifact."
+}
+
 buildkonfig {
-    packageName = "com.example.celestis"
+    packageName = "com.alexstephen.celestis80085"
 
     // Default values (used if local.properties is missing)
     defaultConfigs {
-        buildConfigField(STRING, "BASE_URL", localProperties.getProperty("BASE_URL") ?: "https://fallback.com")
+        buildConfigField(STRING, "BASE_URL", configuredBaseUrl.ifBlank { "https://fallback.com" })
     }
 
     targetConfigs {
         create("main") {
-            buildConfigField(STRING, "BASE_URL", localProperties.getProperty("BASE_URL") ?: "")
+            buildConfigField(STRING, "BASE_URL", configuredBaseUrl)
         }
     }
 }
 
 android {
-    namespace = "com.example.celestis"
+    namespace = "com.alexstephen.celestis80085"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     val releaseStoreFilePath = localProperties.getProperty("RELEASE_STORE_FILE")
         ?: System.getenv("CELESTIS_RELEASE_STORE_FILE")
@@ -139,7 +153,7 @@ android {
     ).all { !it.isNullOrBlank() }
 
     defaultConfig {
-        applicationId = "com.example.celestis"
+        applicationId = "com.alexstephen.celestis80085"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -162,7 +176,12 @@ android {
     }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }

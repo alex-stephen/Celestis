@@ -1,0 +1,804 @@
+package com.alexstephen.celestis80085.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.NetworkWifi
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil3.compose.LocalPlatformContext
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import com.alexstephen.celestis80085.model.ApodResponse
+import com.alexstephen.celestis80085.model.isVideo
+import com.alexstephen.celestis80085.ui.components.CelestisRangePicker
+import com.alexstephen.celestis80085.ui.components.ShimmerApodGrid
+import com.alexstephen.celestis80085.ui.components.VideoPlaceholder
+import com.alexstephen.celestis80085.ui.navigation.TopBarState
+import com.alexstephen.celestis80085.ui.navigation.apodNavigationOverlayWidth
+import com.alexstephen.celestis80085.ui.navigation.apodTopAppBarContentHeight
+import com.alexstephen.celestis80085.ui.utils.HapticFeedbackType
+import com.alexstephen.celestis80085.ui.utils.VideoUrlUtils
+import com.alexstephen.celestis80085.ui.utils.createHapticFeedback
+import com.alexstephen.celestis80085.ui.viewModels.DiscoverUiState
+import com.alexstephen.celestis80085.ui.viewModels.DisplayMode
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@Composable
+fun SharedTransitionScope.DiscoverScreen(
+    uiState: DiscoverUiState,
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onLoadMoreSearchResults: () -> Unit,
+    onLoadMoreRangeResults: () -> Unit,
+    onDateRangeSelected: (Long?, Long?) -> Unit,
+    onRandomClick: () -> Unit,
+    windowSizeClass: WindowSizeClass,
+    onPhotoDetailClick: (ApodResponse) -> Unit,
+    hazeState: HazeState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val navigationOverlayWidth = apodNavigationOverlayWidth(windowSizeClass)
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val density = LocalDensity.current
+    var overlayHeightPx by remember { mutableStateOf(0) }
+    val overlayHeightDp = if (overlayHeightPx > 0) with(density) { overlayHeightPx.toDp() } else statusBarTop + appBarContentHeight
+
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Background layer with hazeSource (like HomeScreen pattern)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = hazeState)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            when (val state = uiState) {
+                is DiscoverUiState.Loading -> {
+                    // Professional loading with shimmer effect
+                    val gridCols = when (windowSizeClass.widthSizeClass) {
+                        WindowWidthSizeClass.Compact -> 3
+                        WindowWidthSizeClass.Medium -> 4
+                        else -> 5
+                    }
+                    Box(modifier = Modifier.padding(start = navigationOverlayWidth)) {
+                        ShimmerApodGrid(columns = gridCols, itemCount = 30)
+                    }
+                }
+
+                is DiscoverUiState.Error -> {
+                    Box(modifier = Modifier.padding(start = navigationOverlayWidth)) {
+                        DiscoverScreenError(state)
+                    }
+                }
+                is DiscoverUiState.Success -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = navigationOverlayWidth)
+                    ) {
+                        DiscoverScreenGrid(
+                            state = state,
+                            windowSizeClass = windowSizeClass,
+                            onLoadMoreSearchResults = onLoadMoreSearchResults,
+                            onLoadMoreRangeResults = onLoadMoreRangeResults,
+                            onPhotoDetailClick = onPhotoDetailClick,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            topBarState = topBarState,
+                            contentPadding = PaddingValues(
+                                top = overlayHeightDp,
+                                bottom = 70.dp + navigationBarBottom + 10.dp
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = navigationOverlayWidth)
+                .onSizeChanged { overlayHeightPx = it.height }
+        ) {
+            // Animated visibility for the search app bar
+            AnimatedVisibility(
+                visible = topBarState.isVisible,
+                enter = androidx.compose.animation.slideInVertically { -it },
+                exit = androidx.compose.animation.slideOutVertically { -it }
+            ) {
+                DiscoverSearchAppBar(
+                    query = searchQuery,
+                    onQueryChange = onQueryChange,
+                    onSearch = onSearch,
+                    onOpenDatePicker = { showDatePicker = true },
+                    onRandomClick = onRandomClick,
+                    isRandomLoading = uiState is DiscoverUiState.Loading ||
+                        (uiState is DiscoverUiState.Success && uiState.isRefreshing && uiState.displayMode == DisplayMode.RANDOM),
+                    hazeState = hazeState,
+                    windowSizeClass = windowSizeClass
+                )
+            }
+
+            // Smooth drop-down animation for network loss
+            AnimatedVisibility(
+                visible = uiState is DiscoverUiState.Success && uiState.isOfflineMode,
+                enter = androidx.compose.animation.slideInVertically { -it } + androidx.compose.animation.expandVertically(),
+                exit = androidx.compose.animation.slideOutVertically { -it } + androidx.compose.animation.shrinkVertically()
+            ) {
+                OfflineModeBanner()
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        CelestisRangePicker(
+            onDismiss = { showDatePicker = false },
+            onConfirm = { start, end ->
+                onDateRangeSelected(start, end)
+                showDatePicker = false
+            }
+        )
+    }
+}
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@Composable
+fun SharedTransitionScope.DiscoverScreenGrid(
+    state: DiscoverUiState.Success,
+    windowSizeClass: WindowSizeClass,
+    onLoadMoreSearchResults: () -> Unit,
+    onLoadMoreRangeResults: () -> Unit,
+    onPhotoDetailClick: (ApodResponse) -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    topBarState: TopBarState,
+    contentPadding: PaddingValues
+) {
+
+    val gridCols = when (windowSizeClass.widthSizeClass) {
+        WindowWidthSizeClass.Compact -> 3
+        WindowWidthSizeClass.Medium -> 4
+        else -> 5
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        when (state.displayMode) {
+            DisplayMode.RANDOM -> {
+                // MODE C: Random APODs (static 30, no pagination)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridCols),
+                    contentPadding = contentPadding,
+                    modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                ) {
+                    itemsIndexed(
+                        items = state.randomApods,
+                        key = { _, apod -> apod.date }
+                    ) { _, apod ->
+                        ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
+                    }
+                }
+            }
+            DisplayMode.RANGE -> {
+                // MODE A: Date Range Feed with Pagination
+                // Compute the pagination trigger index outside the grid to avoid
+                // recomposing every item when the list size changes.
+                val rangeLoadMoreThreshold = remember(state.rangeApod.size) {
+                    (state.rangeApod.size - 15).coerceAtLeast(0)
+                }
+                // Track the last index that triggered a load to prevent duplicate calls.
+                var rangeLastTriggeredIndex by remember { mutableStateOf(-1) }
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(gridCols),
+                    contentPadding = contentPadding,
+                    modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                ) {
+                    itemsIndexed(
+                        items = state.rangeApod,
+                        key = { _, apod -> apod.date }
+                    ) { index, apod ->
+                        ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
+
+                        // Trigger load more when near end — only once per threshold crossing.
+                        if (index >= rangeLoadMoreThreshold &&
+                            state.rangeApod.isNotEmpty() &&
+                            index != rangeLastTriggeredIndex
+                        ) {
+                            rangeLastTriggeredIndex = index
+                            LaunchedEffect(rangeLoadMoreThreshold) {
+                                onLoadMoreRangeResults()
+                            }
+                        }
+                    }
+                }
+            }
+            DisplayMode.SEARCH -> {
+                // MODE B: Search Results with Pagination
+                val searchState = state.searchResults
+                if (searchState.isLoading && searchState.items.isEmpty()) {
+                    ShimmerApodGrid(columns = gridCols, itemCount = 30)
+                } else {
+                    // Compute the pagination trigger index outside the grid.
+                    val searchLoadMoreThreshold = remember(searchState.items.size) {
+                        (searchState.items.size - 15).coerceAtLeast(0)
+                    }
+                    var searchLastTriggeredIndex by remember { mutableStateOf(-1) }
+
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridCols),
+                        contentPadding = contentPadding,
+                        modifier = Modifier.nestedScroll(topBarState.nestedScrollConnection)
+                    ) {
+                        itemsIndexed(
+                            items = searchState.items,
+                            key = { _, apod -> apod.date }
+                        ) { index, apod ->
+                            ApodCard(apod, onPhotoDetailClick, animatedVisibilityScope)
+
+                            // Trigger load more when near end — only once per threshold crossing.
+                            if (index >= searchLoadMoreThreshold &&
+                                searchState.hasMore &&
+                                !searchState.isLoadingMore &&
+                                index != searchLastTriggeredIndex
+                            ) {
+                                searchLastTriggeredIndex = index
+                                LaunchedEffect(searchLoadMoreThreshold) {
+                                    onLoadMoreSearchResults()
+                                }
+                            }
+                        }
+
+                        // Show loading more indicator at bottom
+                        if (searchState.isLoadingMore) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+
+                        // Show error if present
+                        if (searchState.error != null) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Text(
+                                    text = "Error: ${searchState.error}",
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
+
+                        // Show "no results" message
+                        if (!searchState.isLoading && searchState.items.isEmpty() && searchState.error == null) {
+                            item(span = { GridItemSpan(gridCols) }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("No results found for \"${state.searchQuery}\"")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun SharedTransitionScope.ApodCard(
+    apod: ApodResponse,
+    onPhotoDetailClick: (ApodResponse) -> Unit,
+    animatedVisibilityScope: AnimatedVisibilityScope
+) {
+    val isVideo = remember(apod.date) { apod.isVideo() }
+    // Only show the placeholder when there is truly no thumbnail available:
+    // no thumbnailUrl from the API AND no YouTube ID we can derive a thumbnail from.
+    val hasNoThumbnail = remember(apod.date, isVideo, apod.thumbnailUrl, apod.url) {
+        isVideo && apod.thumbnailUrl == null &&
+            (apod.url == null || VideoUrlUtils.extractYouTubeId(apod.url) == null)
+    }
+    
+    // Primary thumbnail URL: explicit thumbnailUrl > YouTube hqdefault > raw url
+    val imageUrl = remember(apod.date, apod.url, apod.thumbnailUrl, isVideo) {
+        if (isVideo) {
+            apod.thumbnailUrl
+                ?: apod.url?.let { url ->
+                    VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                        VideoUrlUtils.getYouTubeThumbnail(videoId)
+                    }
+                }
+                ?: apod.url
+        } else {
+            apod.url
+        }
+    }
+
+    // Fallback thumbnail URL: mqdefault when hqdefault is unavailable
+    val fallbackImageUrl = remember(apod.date, apod.url, isVideo) {
+        if (isVideo && apod.thumbnailUrl == null) {
+            apod.url?.let { url ->
+                VideoUrlUtils.extractYouTubeId(url)?.let { videoId ->
+                    "https://img.youtube.com/vi/$videoId/mqdefault.jpg"
+                }
+            }
+        } else null
+    }
+    
+    val scrimGradient = remember {
+        Brush.verticalGradient(
+            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
+            startY = 0f
+        )
+    }
+    
+    // Cache the ImageRequest to avoid rebuilding on every recomposition
+    val context = LocalPlatformContext.current
+    val imageModel = remember(imageUrl) {
+        imageUrl?.let { url ->
+            ImageRequest.Builder(context)
+                .data(url)
+                .size(400, 400)
+                .precision(Precision.INEXACT)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+        }
+    }
+
+    // Fallback model used when primary imageModel fails (e.g. hqdefault 404 → mqdefault)
+    val fallbackImageModel = remember(fallbackImageUrl) {
+        fallbackImageUrl?.let { url ->
+            ImageRequest.Builder(context)
+                .data(url)
+                .size(400, 400)
+                .precision(Precision.INEXACT)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+        }
+    }
+
+    // Track whether we are currently showing the fallback model
+    var usingFallback by remember(apod.date) { mutableStateOf(false) }
+    
+    Card(
+        onClick = { onPhotoDetailClick(apod) },
+        modifier = Modifier
+            .padding(1.dp)
+            .fillMaxWidth(),
+        shape = RectangleShape,
+        //shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (hasNoThumbnail) {
+                // Use VideoPlaceholder for videos without thumbnails
+                VideoPlaceholder(
+                    title = apod.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        //.clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(1f)
+                )
+            } else {
+                SubcomposeAsyncImage(
+                    model = if (usingFallback) fallbackImageModel else imageModel,
+                    contentDescription = apod.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        //.clip(RoundedCornerShape(12.dp))
+                        .aspectRatio(1f)
+                        .sharedElement(
+                            rememberSharedContentState(key = "image-${apod.date}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        ),
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
+                        }
+                    },
+                    error = {
+                        if (isVideo && !usingFallback && fallbackImageModel != null) {
+                            // Primary YouTube thumbnail failed — retry with mqdefault
+                            LaunchedEffect(apod.date) { usingFallback = true }
+                            // Show spinner while switching
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                )
+                            }
+                        } else if (isVideo) {
+                            // Both primary and fallback failed — show branded placeholder
+                            VideoPlaceholder(
+                                title = apod.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (apod.url == null || apod.urlHD == null) "Media Not Available" else "Unable to load",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                )
+                
+                // Add play icon overlay for videos
+                if (isVideo) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Play Video",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            }
+
+            // Dynamic Text Overlay with Scrim
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(scrimGradient)
+                    .padding(8.dp)
+            ) {
+                Column {
+                    apod.title?.let {
+                        Text(
+                            text = it,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = apod.date,
+                        color = Color.White.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DiscoverSearchAppBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onOpenDatePicker: () -> Unit,
+    onRandomClick: () -> Unit,
+    isRandomLoading: Boolean,
+    hazeState: HazeState,
+    windowSizeClass: WindowSizeClass,
+    modifier: Modifier = Modifier
+) {
+    val focusManager = LocalFocusManager.current
+    val haptic = remember { createHapticFeedback() }
+    val appBarContentHeight = apodTopAppBarContentHeight(windowSizeClass)
+
+    // Outer Surface: Background extends through status bar
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = Color(0xFF111111).copy(alpha = 0.85f),
+                    blurRadius = 20.dp,
+                    noiseFactor = 0f,
+                    tint = HazeTint(Color.White.copy(alpha = 0.05f)),
+                )
+            )
+            .drawBehind {
+                val strokeWidthPx = 1.dp.toPx()
+                val verticalOffset = size.height - strokeWidthPx / 2
+                drawLine(
+                    color = Color.White.copy(alpha = 0.15f),
+                    start = Offset(0f, verticalOffset),
+                    end = Offset(size.width, verticalOffset),
+                    strokeWidth = strokeWidthPx
+                )
+            },
+        color = Color.Transparent,
+        tonalElevation = 0.dp
+    ) {
+        // Inner Row: Content padded for status bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .height(appBarContentHeight)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Random button (Dice) — rainbow cycling while loading, disabled to prevent spam
+            val rainbowTransition = rememberInfiniteTransition(label = "DiceRainbow")
+            val hue by rainbowTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "DiceHue"
+            )
+            val diceTint = if (isRandomLoading) {
+                Color.hsv(hue = hue, saturation = 0.8f, value = 1f)
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+            IconButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.DICE_ROLL)
+                    onRandomClick()
+                },
+                enabled = !isRandomLoading
+            ) {
+                Icon(
+                    Icons.Default.Casino,
+                    contentDescription = "Random",
+                    tint = diceTint.copy(alpha = if (isRandomLoading) 0.85f else 1f)
+                )
+            }
+
+            // Sleek, embedded Search Field
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.50f)),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { 
+                    focusManager.clearFocus()
+                    onSearch()
+                }),
+                decorationBox = { innerTextField ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Box(Modifier.weight(1f)) {
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = "Search APODs...",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
+                                )
+                            }
+                            innerTextField()
+                        }
+                        if (query.isNotEmpty()) {
+                            IconButton(
+                                onClick = {
+                                    onQueryChange("")
+                                    onSearch() // Trigger reset
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Calendar Action
+            IconButton(onClick = onOpenDatePicker) {
+                Icon(Icons.Default.CalendarToday, contentDescription = "Select Date", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+@Composable
+fun DiscoverScreenError(state: DiscoverUiState.Error) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = state.message,
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Please try again or check your connection.",
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+fun OfflineModeBanner() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.NetworkWifi,
+                contentDescription = "Offline",
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Offline Mode - No Network Connection",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
+}

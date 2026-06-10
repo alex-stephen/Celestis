@@ -30,4 +30,6 @@ AGENTS.md
 .env
 GoogleService-Info.plist
 
-docs/
+docs/*
+!docs/screenshots/
+!docs/screenshots/**
