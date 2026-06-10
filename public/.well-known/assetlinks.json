@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.alexstephen.celestis80085",
+      "sha256_cert_fingerprints": [
+        "E4:0F:61:7D:94:5B:00:CE:31:68:CD:B5:32:A4:CA:17:D3:6D:D0:D7:DC:D4:29:AF:BB:A1:03:0A:ED:8E:F8:1C"
+      ]
+    }
+  }
+]

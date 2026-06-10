@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import com.alexstephen.celestis80085.AndroidPlatform
 import com.alexstephen.celestis80085.Platform
+import com.alexstephen.celestis80085.data.AppSettingsStorage
 import com.alexstephen.celestis80085.database.AppDatabase
 import com.alexstephen.celestis80085.network.NetworkMonitor
 import com.alexstephen.celestis80085.notifications.AndroidNotificationScheduler
@@ -34,6 +35,7 @@ val androidModule = module {
     single<Platform> { AndroidPlatform(get()) }
     single<ShareManager> { AndroidShareManager(get<Platform>().context) }
     single<AppActionManager> { AndroidAppActionManager(get<Platform>().context) }
+    single { AppSettingsStorage(get()) }
     single { NetworkMonitor(get()) }
     single<BackgroundSyncManager> { AndroidSyncManager(get()) }
     single<NotificationScheduler> { AndroidNotificationScheduler(get()) }

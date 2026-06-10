@@ -29,7 +29,8 @@ google-services.json
 AGENTS.md
 .env
 GoogleService-Info.plist
-
+release/upload-keystore.jks
+.firebase/
 docs/*
 !docs/screenshots/
 !docs/screenshots/**

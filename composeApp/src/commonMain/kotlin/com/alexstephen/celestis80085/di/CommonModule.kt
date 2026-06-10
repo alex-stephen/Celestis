@@ -8,6 +8,7 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import coil3.size.Precision
+import com.alexstephen.celestis80085.data.AppSettingsRepository
 import com.alexstephen.celestis80085.Platform
 import com.alexstephen.celestis80085.data.ApodRepository
 import com.alexstephen.celestis80085.network.createHttpClient
@@ -30,6 +31,8 @@ val commonModule = module {
     single { NasaApi(get()) }
 
     single { ApodRepository(get(), get(), get(), get())}
+
+    single { AppSettingsRepository(get(), get()) }
 
     // Separate HttpClient for Coil with 6-second timeout for HD image downloads
     single(qualifier = org.koin.core.qualifier.named("coilHttpClient")) {
@@ -78,7 +81,7 @@ val commonModule = module {
 
     viewModel { FavoriteViewModel(get()) }
 
-    viewModel { HomeViewModel(get(), get(), get<Platform>().context, get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get<Platform>().context, get(), get(), get()) }
 
     viewModel { PhotoDetailViewModel(get(), get(), get<Platform>().context, get(), get()) }
 

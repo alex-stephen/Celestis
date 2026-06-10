@@ -269,7 +269,9 @@ fun HomeScreenSuccess(
                         LaunchedEffect(currentApod.date) { onImageLoaded() }
                         CelestisVideoPlayer(
                             videoUrl = currentApod.url ?: "",
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = navigationOverlayWidth),
                             onError = { println("Video playback error: $it") },
                             isPlaying = isVideoPlaying,
                             isLandscape = isLandscape,

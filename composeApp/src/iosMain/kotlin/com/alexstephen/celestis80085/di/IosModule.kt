@@ -4,6 +4,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.alexstephen.celestis80085.IOSPlatform
 import com.alexstephen.celestis80085.Platform
+import com.alexstephen.celestis80085.data.AppSettingsStorage
 import com.alexstephen.celestis80085.database.AppDatabase
 import com.alexstephen.celestis80085.network.NetworkMonitor
 import com.alexstephen.celestis80085.notifications.IosNotificationScheduler
@@ -33,6 +34,7 @@ val iosModule = module {
     single<Platform> { IOSPlatform() }
     single<ShareManager> { IosShareManager() }
     single<AppActionManager> { IosAppActionManager() }
+    single { AppSettingsStorage() }
     single { NetworkMonitor() }
     single<NotificationScheduler> { IosNotificationScheduler() }
     single<PushNotificationManager> { IosPushNotificationManager() }

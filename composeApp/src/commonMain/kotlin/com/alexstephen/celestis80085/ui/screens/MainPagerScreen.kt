@@ -185,7 +185,8 @@ fun MainPagerScreen(
                     onNotificationsClick = settingsViewModel::openNotificationSettings,
                     onReportBugClick = settingsViewModel::reportBug,
                     onLeaveReviewClick = settingsViewModel::leaveReview,
-                    onShareAppClick = settingsViewModel::shareApp
+                    onShareAppClick = settingsViewModel::shareApp,
+                    onLowDataModeChange = settingsViewModel::setLowDataMode
                 )
             }
         }

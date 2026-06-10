@@ -6,9 +6,11 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import com.alexstephen.celestis80085.data.AppSettingsRepository
 import com.alexstephen.celestis80085.data.ApodRepository
 import com.alexstephen.celestis80085.data.toResponse
 import com.alexstephen.celestis80085.model.ApodResponse
+import com.alexstephen.celestis80085.model.isVideo
 import com.alexstephen.celestis80085.network.NetworkMonitor
 import com.alexstephen.celestis80085.ui.utils.ImagePrefetcher
 import com.alexstephen.celestis80085.ui.utils.LinkGenerator
@@ -32,7 +34,8 @@ sealed interface HomeUiState {
         val todayApod: ApodResponse,
         val randomApod: ApodResponse? = null,
         val selectedHdUrl: String? = null,
-        val isOfflineMode: Boolean = false
+        val isOfflineMode: Boolean = false,
+        val isLowDataMode: Boolean = false
     ) : HomeUiState
     data class Error(val message: String) : HomeUiState
 }
@@ -42,7 +45,8 @@ class HomeViewModel(
     private val imageLoader: ImageLoader,
     private val context: PlatformContext,
     private val shareManager: ShareManager,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val appSettingsRepository: AppSettingsRepository
 ) : ViewModel() {
 
     private val todayApodFlow = repository.observeLatestApod()
@@ -60,8 +64,9 @@ class HomeViewModel(
         todayApodFlow,
         _randomApod,
         _selectedHdUrl,
-        networkMonitor.isOnline
-    ) { today, random, hdUrl, isOnline ->
+        networkMonitor.isOnline,
+        appSettingsRepository.isLowDataMode
+    ) { today, random, hdUrl, isOnline, isLowDataMode ->
         if (today == null) {
             HomeUiState.Loading
         } else {
@@ -69,7 +74,8 @@ class HomeViewModel(
                 todayApod = today,
                 randomApod = random,
                 selectedHdUrl = hdUrl,
-                isOfflineMode = !isOnline
+                isOfflineMode = !isOnline,
+                isLowDataMode = isLowDataMode
             )
         }
     }.stateIn(
@@ -143,7 +149,10 @@ class HomeViewModel(
             _isShowingRandom.value = true
 
             // Pre-warm the next item so the following tap is instant
-            randomQueue.firstOrNull()?.url?.let { nextUrl ->
+            randomQueue.firstOrNull()
+                ?.takeUnless { appSettingsRepository.isLowDataMode.value || it.isVideo() }
+                ?.url
+                ?.let { nextUrl ->
                 launch(Dispatchers.IO) {
                     imageLoader.execute(
                         ImageRequest.Builder(context)
@@ -175,6 +184,7 @@ class HomeViewModel(
             try {
                 val needed = if (initial) 5 else BATCH_SIZE // Start with 5 for faster initial load
                 val isOnline = networkMonitor.isOnline.firstOrNull() ?: true
+                val isLowDataMode = appSettingsRepository.isLowDataMode.value
                 
                 val newItems = if (isOnline) {
                     // Online: Fetch from API
@@ -187,7 +197,7 @@ class HomeViewModel(
                 randomQueue.addAll(newItems)
                 
                 // Cache images in background (only if online, images should already be cached if offline)
-                if (isOnline) {
+                if (isOnline && !isLowDataMode) {
                     ImagePrefetcher.prefetchApodBatch(
                         imageLoader = imageLoader,
                         context = context,
@@ -209,7 +219,7 @@ class HomeViewModel(
                          repository.getRandomCachedApods(remaining).map { it.toResponse() }
                      }
                      randomQueue.addAll(moreItems)
-                     if (isOnline) {
+                     if (isOnline && !isLowDataMode) {
                          ImagePrefetcher.prefetchApodBatch(imageLoader, context, moreItems, this)
                      }
                 }

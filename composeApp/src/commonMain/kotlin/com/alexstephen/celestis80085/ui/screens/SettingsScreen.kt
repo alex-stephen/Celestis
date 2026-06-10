@@ -83,7 +83,8 @@ fun SettingsScreen(
     onNotificationsClick: () -> Unit,
     onReportBugClick: () -> Unit,
     onLeaveReviewClick: () -> Unit,
-    onShareAppClick: () -> Unit
+    onShareAppClick: () -> Unit,
+    onLowDataModeChange: (Boolean) -> Unit
 ) {
     var visibleDialog by remember { mutableStateOf<SettingsDialog?>(null) }
     var selectedDocument by remember { mutableStateOf<LegalDocument?>(null) }
@@ -124,7 +125,10 @@ fun SettingsScreen(
             }
 
             item {
-                LowDataModeRow(isLowDataMode = state.isLowDataMode)
+                LowDataModeRow(
+                    isLowDataMode = state.isLowDataMode,
+                    onLowDataModeChange = onLowDataModeChange
+                )
             }
 
             item {
@@ -315,7 +319,8 @@ private fun SettingsHeader() {
             Text(
                 text = "Celestis",
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
                 text = "Astronomy Picture of the Day",
@@ -327,7 +332,10 @@ private fun SettingsHeader() {
 }
 
 @Composable
-private fun LowDataModeRow(isLowDataMode: Boolean) {
+private fun LowDataModeRow(
+    isLowDataMode: Boolean,
+    onLowDataModeChange: (Boolean) -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f),
@@ -343,15 +351,23 @@ private fun LowDataModeRow(isLowDataMode: Boolean) {
                 tint = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.size(14.dp))
-            Text(
-                text = "Low data mode",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.weight(1f))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Low data mode",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Avoid background media loading.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
+                )
+            }
+            Spacer(Modifier.size(12.dp))
             Switch(
                 checked = isLowDataMode,
-                onCheckedChange = null
+                onCheckedChange = onLowDataModeChange
             )
         }
     }
